@@ -3,11 +3,11 @@
 ## Android
 [ProGuard使用](./Android/ProGuard使用.md)
 
-[Java 虚拟机和Dalvik区别](./Android/Java 虚拟机和Dalvik区别/Java 虚拟机和Dalvik区别.md)
+[Java 虚拟机和Dalvik区别](./Android/Java虚拟机和Dalvik区别/Java虚拟机和Dalvik区别.md)
 
 [MMAP在Android中使用](./Android/MMAP在Android中使用/MMAP在Android中使用.md)
 
-[View的绘制--Project Butter](./Android/View的绘制--Project Butter/View的绘制--Project Butter.md)
+[View的绘制--Project Butter](./Android/View的绘制/View的绘制.md)
 
 [View绘制的顺序缓存](./Android/View绘制的顺序缓存/View绘制的顺序缓存.md)
 ## Java
@@ -17,7 +17,7 @@
 
 [静态链接和动态链接](./Linux/静态链接和动态链接/静态链接和动态链接.md)
 
-[Linux 内核的文件 Cache 管理机制介绍](./Linux/Linux 内核的文件 Cache 管理机制介绍/Linux 内核的文件 Cache 管理机制介绍.md)
+[Linux 内核的文件 Cache 管理机制介绍](./Linux/Linux内核的文件Cache管理机制介绍/Linux内核的文件Cache管理机制介绍.md)
 
 [MMU](./Linux/MMU/MMU.md)
 
