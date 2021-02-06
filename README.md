@@ -10,6 +10,8 @@
 [View的绘制--Project Butter](./Android/View的绘制/View的绘制.md)
 
 [View绘制的顺序缓存](./Android/View绘制的顺序缓存/View绘制的顺序缓存.md)
+
+[最强Android书架构大剖析](./Android/最强Android书架构大剖析.pdf)
 ## Java
 
 ## Linux
@@ -20,6 +22,15 @@
 [Linux 内核的文件 Cache 管理机制介绍](./Linux/Linux内核的文件Cache管理机制介绍/Linux内核的文件Cache管理机制介绍.md)
 
 [MMU](./Linux/MMU/MMU.md)
+
+[负载](./Linux/负载/负载.md)
+
+[内存使用](./Linux/内存使用/内存使用.md)
+
+[软中断](./Linux/软中断.md)
+
+[cpu使用率](./Linux/cpu使用率/cpu使用率.md)
+
 
 ## Other
 [音视频基础知识](./音视频基础知识/音视频基础知识.md)
