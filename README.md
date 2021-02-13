@@ -29,7 +29,7 @@
 
 [控制反转](./designPattern/IoC.md)
 
-[有限状态机](./designPattern/state.md)
+[有限状态机](https://github.com/chaoyueLin/stateDemo)
 
 ## Linux
 [CPU活动信息](./Linux/CPU活动信息.md)
