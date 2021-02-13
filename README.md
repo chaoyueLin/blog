@@ -14,6 +14,16 @@
 [最强Android书架构大剖析](./Android/最强Android书架构大剖析.pdf)
 ## Java
 
+[类与对象](./Java/java_base1.md)
+
+[集合](./Java/java_base2.md)
+
+[多线程](./Java/java_base3.md)
+
+[字符](./Java/java_base4.md)
+
+[注解](./Java/java_base5.md)
+
 ## Linux
 [CPU活动信息](./Linux/CPU活动信息.md)
 
