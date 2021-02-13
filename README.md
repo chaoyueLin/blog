@@ -24,6 +24,13 @@
 
 [注解](./Java/java_base5.md)
 
+## 设计模式
+[设计模式](./designPattern/designPattern.md)
+
+[控制反转](./designPattern/IoC.md)
+
+[有限状态机](./designPattern/state.md)
+
 ## Linux
 [CPU活动信息](./Linux/CPU活动信息.md)
 
