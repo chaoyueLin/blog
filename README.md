@@ -18,11 +18,11 @@
 
 [集合](./Java/java_base2.md)
 
-[多线程](./Java/java_base3.md)
+[多线程](./Java/java_base3.md),[多线程协作](https://github.com/chaoyueLin/threadDemo)
 
 [字符](./Java/java_base4.md)
 
-[注解](./Java/java_base5.md)
+[注解](https://github.com/chaoyueLin/annotationDemo)
 
 ## 设计模式
 [设计模式](./designPattern/designPattern.md)
@@ -57,7 +57,7 @@
 # Base
 [补码](./补码/补码.md)
 
-[类图关系](./class/class.md)
+[类图关系](./类图/class.md)
 
 # 网络
 [TCP](./TCP/TCP.md)
