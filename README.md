@@ -1,17 +1,28 @@
 # Blog
 以往的博客文章散落在csdn，简书，掘金等，现在归纳在这里
 ## Android
-[ProGuard使用](./Android/ProGuard使用.md)
+[组件化](https://github.com/chaoyueLin/componentDemo)
 
-[Java 虚拟机和Dalvik区别](./Android/Java虚拟机和Dalvik区别/Java虚拟机和Dalvik区别.md)
+[ASM](https://github.com/chaoyueLin/asmDemo)
 
-[MMAP在Android中使用](./Android/MMAP在Android中使用/MMAP在Android中使用.md)
+[Gradle](https://github.com/chaoyueLin/GradleDemo)
 
-[View的绘制--Project Butter](./Android/View的绘制/View的绘制.md)
+[apktool](https://github.com/chaoyueLin/apktoolDemo)
 
-[View绘制的顺序缓存](./Android/View绘制的顺序缓存/View绘制的顺序缓存.md)
+[单元测试在Android](https://github.com/chaoyueLin/UnitTestInAndroid)
 
-[最强Android书架构大剖析](./Android/最强Android书架构大剖析.pdf)
+[infer代码检查](https://github.com/chaoyueLin/infer_code_check),[空指针异常](https://github.com/chaoyueLin/NPE_avoid)
+
+[ProGuard使用](./Android/ProGuard使用.md),[Jetpack使用](https://github.com/chaoyueLin/jetpackDemo),[webview](https://github.com/chaoyueLin/webviewDemo),[OKHttp与拦截链模式](https://github.com/chaoyueLin/okhttpDemo),[RxJava](https://github.com/chaoyueLin/reactive),[Retrofit](https://github.com/chaoyueLin/retrofitDemo)
+
+
+[mmkv源码](https://github.com/chaoyueLin/mmkvDemo),[MMAP在Android中使用](./Android/MMAP在Android中使用/MMAP在Android中使用.md)
+
+[View的绘制--Project Butter](./Android/View的绘制/View的绘制.md),[View绘制的顺序缓存](./Android/View绘制的顺序缓存/View绘制的顺序缓存.md)
+
+[最强Android书架构大剖析](./Android/最强Android书架构大剖析.pdf)，[Java 虚拟机和Dalvik区别](./Android/Java虚拟机和Dalvik区别/Java虚拟机和Dalvik区别.md)
+
+
 ## Java
 
 [类与对象](./Java/java_base1.md)
@@ -28,14 +39,13 @@
 [Kotlin](https://github.com/chaoyueLin/kotlinDemo)
 
 ## C,C++
-[NDK开发](https://github.com/chaoyueLin/ndkDemo)
-[SDK开发指南](https://github.com/chaoyueLin/SDKDemo)
+[NDK开发](https://github.com/chaoyueLin/ndkDemo),[SDK开发指南](https://github.com/chaoyueLin/SDKDemo),[cmake](https://github.com/chaoyueLin/cmakeDemo)
 
 ## Flutter
 [Flutter](https://github.com/chaoyueLin/flutterDemo)
 
 ## Python
-[Python](https://github.com/chaoyueLin/pythonDemo)
+[Python](https://github.com/chaoyueLin/pythonDemo),[python在web开发](https://github.com/chaoyueLin/awesome-python-webapp)
 
 ## Lua
 [lua基础](https://github.com/chaoyueLin/luaBaseDemo)
@@ -45,6 +55,9 @@
 
 [Html5](https://github.com/chaoyueLin/JavaScriptDemo/blob/main/H5.md)
 
+## MySQL
+[MySQL](https://github.com/chaoyueLin/MySQLDemo)
+
 ## 设计模式
 [设计模式](./designPattern/designPattern.md)
 
@@ -52,6 +65,9 @@
 
 [有限状态机](https://github.com/chaoyueLin/stateDemo)
 
+[mvvm](https://github.com/chaoyueLin/mvvmDemo)
+
+[mvi](https://github.com/chaoyueLin/mviDemo)
 ## Linux
 [CPU活动信息](./Linux/CPU活动信息.md)
 
@@ -83,3 +99,5 @@
 [音视频基础知识](./音视频基础知识/音视频基础知识.md)
 
 [Maven搭建与使用](./Maven搭建与使用/Maven搭建与使用.md)
+
+[邮件app开发](https://github.com/chaoyueLin/emailDemo)
