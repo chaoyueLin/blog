@@ -24,11 +24,23 @@
 
 [注解](https://github.com/chaoyueLin/annotationDemo)
 
+## Kotlin
+[Kotlin](https://github.com/chaoyueLin/kotlinDemo)
+
+## C,C++
+[NDK开发](https://github.com/chaoyueLin/ndkDemo)
+[SDK开发指南](https://github.com/chaoyueLin/SDKDemo)
+
+## Flutter
+[Flutter](https://github.com/chaoyueLin/flutterDemo)
+
+## Python
+[Python](https://github.com/chaoyueLin/pythonDemo)
+
 ## Lua
 [lua基础](https://github.com/chaoyueLin/luaBaseDemo)
 
 ## 前端
-
 [JavaScript原型链](https://github.com/chaoyueLin/JavaScriptDemo)
 
 [Html5](https://github.com/chaoyueLin/JavaScriptDemo/blob/main/H5.md)
