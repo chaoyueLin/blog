@@ -1,11 +1,15 @@
 # Blog
 以往的博客文章散落在csdn，简书，掘金等，现在归纳在这里
 ## Android
-[组件化](https://github.com/chaoyueLin/componentDemo)
+[组件化](https://github.com/chaoyueLin/componentDemo),[ceventbus](https://github.com/chaoyueLin/cevnetbus)
+
+[插件化](https://github.com/chaoyueLin/pluginDemo)
 
 [ASM](https://github.com/chaoyueLin/asmDemo)
 
 [Gradle](https://github.com/chaoyueLin/GradleDemo)
+
+[UI优化](https://github.com/chaoyueLin/uiDemo),[View的绘制--Project Butter](./Android/View的绘制/View的绘制.md),[View绘制的顺序缓存](./Android/View绘制的顺序缓存/View绘制的顺序缓存.md)
 
 [apktool](https://github.com/chaoyueLin/apktoolDemo)
 
@@ -18,7 +22,6 @@
 
 [mmkv源码](https://github.com/chaoyueLin/mmkvDemo),[MMAP在Android中使用](./Android/MMAP在Android中使用/MMAP在Android中使用.md)
 
-[View的绘制--Project Butter](./Android/View的绘制/View的绘制.md),[View绘制的顺序缓存](./Android/View绘制的顺序缓存/View绘制的顺序缓存.md)
 
 [最强Android书架构大剖析](./Android/最强Android书架构大剖析.pdf)，[Java 虚拟机和Dalvik区别](./Android/Java虚拟机和Dalvik区别/Java虚拟机和Dalvik区别.md)
 
