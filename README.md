@@ -26,6 +26,8 @@
 [最强Android书架构大剖析](./Android/最强Android书架构大剖析.pdf)，[Java 虚拟机和Dalvik区别](./Android/Java虚拟机和Dalvik区别/Java虚拟机和Dalvik区别.md)
 
 
+[SDK开发指南](./Android/SDK开发.md)
+
 ## Java
 
 [类与对象](./Java/java_base1.md)
@@ -42,7 +44,7 @@
 [Kotlin](https://github.com/chaoyueLin/kotlinDemo)
 
 ## C,C++
-[NDK开发](https://github.com/chaoyueLin/ndkDemo),[SDK开发指南](https://github.com/chaoyueLin/SDKDemo),[cmake](https://github.com/chaoyueLin/cmakeDemo)
+[NDK开发](https://github.com/chaoyueLin/ndkDemo),[cmake](https://github.com/chaoyueLin/cmakeDemo)
 
 ## Flutter
 [Flutter](https://github.com/chaoyueLin/flutterDemo)
