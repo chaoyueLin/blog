@@ -9,6 +9,8 @@
 
 [Gradle](https://github.com/chaoyueLin/GradleDemo)
 
+[代码混淆](./Android/代码混淆/代码混淆.md),[ProGuard使用](./Android/代码混淆/ProGuard使用.md)
+
 [UI优化](https://github.com/chaoyueLin/uiDemo),[View的绘制--Project Butter](./Android/View的绘制/View的绘制.md),[View绘制的顺序缓存](./Android/View绘制的顺序缓存/View绘制的顺序缓存.md)
 
 [apktool](https://github.com/chaoyueLin/apktoolDemo)
@@ -17,7 +19,7 @@
 
 [infer代码检查](https://github.com/chaoyueLin/infer_code_check),[空指针异常](https://github.com/chaoyueLin/NPE_avoid)
 
-[ProGuard使用](./Android/ProGuard使用.md),[Jetpack使用](https://github.com/chaoyueLin/jetpackDemo),[webview](https://github.com/chaoyueLin/webviewDemo),[OKHttp与拦截链模式](https://github.com/chaoyueLin/okhttpDemo),[RxJava](https://github.com/chaoyueLin/reactive),[Retrofit](https://github.com/chaoyueLin/retrofitDemo),[Gson](./Android/Gson/Gson.md)
+[Jetpack使用](https://github.com/chaoyueLin/jetpackDemo),[webview](https://github.com/chaoyueLin/webviewDemo),[OKHttp与拦截链模式](https://github.com/chaoyueLin/okhttpDemo),[RxJava](https://github.com/chaoyueLin/reactive),[Retrofit](https://github.com/chaoyueLin/retrofitDemo),[Gson](./Android/Gson/Gson.md)
 
 
 [mmkv源码](https://github.com/chaoyueLin/mmkvDemo),[MMAP在Android中使用](./Android/MMAP在Android中使用/MMAP在Android中使用.md)
@@ -64,15 +66,10 @@
 [MySQL](https://github.com/chaoyueLin/MySQLDemo)
 
 ## 设计模式
-[设计模式](./designPattern/designPattern.md)
+[设计模式](./designPattern/designPattern.md),[单例,装饰,代理](./designPattern/单例,装饰,代理.md)
+[控制反转](./designPattern/IoC.md),[有限状态机](https://github.com/chaoyueLin/stateDemo)
 
-[控制反转](./designPattern/IoC.md)
-
-[有限状态机](https://github.com/chaoyueLin/stateDemo)
-
-[mvvm](https://github.com/chaoyueLin/mvvmDemo)
-
-[mvi](https://github.com/chaoyueLin/mviDemo)
+[mvvm](https://github.com/chaoyueLin/mvvmDemo),[mvi](https://github.com/chaoyueLin/mviDemo)
 ## Linux
 [CPU活动信息](./Linux/CPU活动信息.md)
 
