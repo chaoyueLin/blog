@@ -67,7 +67,7 @@
 
 ## 设计模式
 [设计模式](./designPattern/designPattern.md),[单例,装饰,代理](./designPattern/单例,装饰,代理.md)
-[控制反转](./designPattern/IoC.md),[有限状态机](https://github.com/chaoyueLin/stateDemo)
+[控制反转](./designPattern/IoC.md),[有限状态机](https://github.com/chaoyueLin/stateDemo),[生产消费者](./designPattern/生产消费者.md)
 
 [mvvm](https://github.com/chaoyueLin/mvvmDemo),[mvi](https://github.com/chaoyueLin/mviDemo)
 ## Linux
