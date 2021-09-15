@@ -36,7 +36,7 @@
 
 [集合](./Java/java_base2.md)
 
-[多线程](./Java/java_base3.md),[多线程协作](https://github.com/chaoyueLin/threadDemo)
+[多线程](./Java/java_base3.md),[死锁](./Java/死锁.md),[多线程协作](https://github.com/chaoyueLin/threadDemo)
 
 [字符](./Java/java_base4.md)
 
