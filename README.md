@@ -38,6 +38,8 @@
 
 [多线程](./Java/java_base3.md),[死锁](./Java/死锁.md),[多线程协作](https://github.com/chaoyueLin/threadDemo)
 
+[静态代理和动态代理](./Java/代理.md)
+
 [字符](./Java/java_base4.md)
 
 [注解](https://github.com/chaoyueLin/annotationDemo)
