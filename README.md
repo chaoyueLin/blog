@@ -30,7 +30,7 @@
 
 [SDK开发指南](./Android/SDK开发.md)
 
-[手Q Android线程死锁监控与自动化分析实践](https://cloud.tencent.com/developer/article/1064396),[WatchDog原理](https://juejin.cn/post/6844904015524954126)
+[手Q Android线程死锁监控与自动化分析实践](https://cloud.tencent.com/developer/article/1064396),[WatchDog原理](https://juejin.cn/post/6844904015524954126),[卡顿、ANR、死锁，线上如何监控？](https://juejin.cn/post/6973564044351373326)
 
 ## Java
 
