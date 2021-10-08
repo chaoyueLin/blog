@@ -30,6 +30,8 @@
 
 [SDK开发指南](./Android/SDK开发.md)
 
+[手Q Android线程死锁监控与自动化分析实践](https://cloud.tencent.com/developer/article/1064396),[WatchDog原理](https://juejin.cn/post/6844904015524954126)
+
 ## Java
 
 [类与对象](./Java/java_base1.md)
@@ -38,7 +40,7 @@
 
 [多线程](./Java/java_base3.md),[死锁](./Java/死锁.md),[多线程协作](https://github.com/chaoyueLin/threadDemo)
 
-[手Q Android线程死锁监控与自动化分析实践](https://cloud.tencent.com/developer/article/1064396),[Java线程池实现原理及其在美团业务中的实践](https://tech.meituan.com/2020/04/02/java-pooling-pratice-in-meituan.html)
+[Java线程池实现原理及其在美团业务中的实践](https://tech.meituan.com/2020/04/02/java-pooling-pratice-in-meituan.html)
 
 [静态代理和动态代理](./Java/代理.md)
 
