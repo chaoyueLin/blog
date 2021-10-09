@@ -15,14 +15,9 @@
 
 [apktool](https://github.com/chaoyueLin/apktoolDemo)
 
-[单元测试在Android](https://github.com/chaoyueLin/UnitTestInAndroid)
+[单元测试在Android](https://github.com/chaoyueLin/UnitTestInAndroid)，[infer代码检查](https://github.com/chaoyueLin/infer_code_check),[空指针异常](https://github.com/chaoyueLin/NPE_avoid)
 
-[infer代码检查](https://github.com/chaoyueLin/infer_code_check),[空指针异常](https://github.com/chaoyueLin/NPE_avoid)
-
-[Jetpack使用](https://github.com/chaoyueLin/jetpackDemo),[webview](https://github.com/chaoyueLin/webviewDemo),[OKHttp与拦截链模式](https://github.com/chaoyueLin/okhttpDemo),[RxJava](https://github.com/chaoyueLin/reactive),[Retrofit](https://github.com/chaoyueLin/retrofitDemo),[Gson](./Android/Gson/Gson.md)
-
-
-[mmkv源码](https://github.com/chaoyueLin/mmkvDemo),[MMAP在Android中使用](./Android/MMAP在Android中使用/MMAP在Android中使用.md)
+[Jetpack使用](https://github.com/chaoyueLin/jetpackDemo),[webview](https://github.com/chaoyueLin/webviewDemo),[OKHttp与拦截链模式](https://github.com/chaoyueLin/okhttpDemo),[RxJava](https://github.com/chaoyueLin/reactive),[Retrofit](https://github.com/chaoyueLin/retrofitDemo),[Gson](./Android/Gson/Gson.md),[mmkv源码](https://github.com/chaoyueLin/mmkvDemo),[MMAP在Android中使用](./Android/MMAP在Android中使用/MMAP在Android中使用.md)
 
 
 [最强Android书架构大剖析](./Android/最强Android书架构大剖析.pdf)，[Java 虚拟机和Dalvik区别](./Android/Java虚拟机和Dalvik区别/Java虚拟机和Dalvik区别.md)
@@ -30,7 +25,8 @@
 
 [SDK开发指南](./Android/SDK开发.md)
 
-[手Q Android线程死锁监控与自动化分析实践](https://cloud.tencent.com/developer/article/1064396),[WatchDog原理](https://juejin.cn/post/6844904015524954126),[卡顿、ANR、死锁，线上如何监控？](https://juejin.cn/post/6973564044351373326)
+### 卡顿
+[BlockCanary 源码分析](https://blog.csdn.net/Love667767/article/details/106302877),[WatchDog原理](https://juejin.cn/post/6844904015524954126),[卡顿、ANR、死锁，线上如何监控？](https://juejin.cn/post/6973564044351373326),[手Q Android线程死锁监控与自动化分析实践](https://cloud.tencent.com/developer/article/1064396)
 
 ## Java
 
