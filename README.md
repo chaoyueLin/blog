@@ -26,6 +26,7 @@
 [SDK开发指南](./Android/SDK开发.md)
 
 ### 卡顿
+[死锁检测](https://github.com/chaoyueLin/MonitorDemo),
 [BlockCanary 源码分析](https://blog.csdn.net/Love667767/article/details/106302877),[WatchDog原理](https://juejin.cn/post/6844904015524954126),[卡顿、ANR、死锁，线上如何监控？](https://juejin.cn/post/6973564044351373326),[手Q Android线程死锁监控与自动化分析实践](https://cloud.tencent.com/developer/article/1064396)
 
 ## Java
