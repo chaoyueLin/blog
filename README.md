@@ -78,22 +78,11 @@
 
 [mvvm](https://github.com/chaoyueLin/mvvmDemo),[mvi](https://github.com/chaoyueLin/mviDemo)
 ## Linux
-[CPU活动信息](./Linux/CPU活动信息.md)
+[UNIX环境高级编程](https://github.com/chaoyueLin/APUE_notes)
 
-[静态链接和动态链接](./Linux/静态链接和动态链接/静态链接和动态链接.md)
+[Linux技术内幕](https://github.com/chaoyueLin/Linux_base)
 
-[Linux 内核的文件 Cache 管理机制介绍](./Linux/Linux内核的文件Cache管理机制介绍/Linux内核的文件Cache管理机制介绍.md)
-
-[MMU](./Linux/MMU/MMU.md)
-
-[负载](./Linux/负载/负载.md)
-
-[内存使用](./Linux/内存使用/内存使用.md)
-
-[软中断](./Linux/软中断.md)
-
-[cpu使用率](./Linux/cpu使用率/cpu使用率.md)
-
+[Linux性能优化](https://github.com/chaoyueLin/Linux)
 
 # Base
 [补码](./补码/补码.md)
