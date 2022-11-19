@@ -27,7 +27,7 @@
 [Html5](https://github.com/chaoyueLin/JavaScriptDemo/blob/main/H5.md)
 
 ## Git
-[git常用指令](./git常用指令.md)
+[git常用指令](./git常用命令.md)
 ## MySQL
 [MySQL](https://github.com/chaoyueLin/MySQLDemo)
 
