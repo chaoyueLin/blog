@@ -68,7 +68,7 @@
 
 [Matrix-TraceCanary解析](https://blog.yorek.xyz/android/3rd-library/matrix-trace/)
 
-[获取线程锁](https://github.com/chaoyueLin/MonitorDemo),[获取线程堆栈，cpu使用日志](https://github.com/chaoyueLin/threadDemo)
+[获取线程锁](https://github.com/chaoyueLin/MonitorDemo),[获取线程堆栈，cpu使用日志](https://github.com/chaoyueLin/threadDemo),[高版本ANR日志获取](https://github.com/chaoyueLin/AnrTracerDemo)
 
 ## NDK
 [NDK开发](https://github.com/chaoyueLin/ndkDemo),[cmake](https://github.com/chaoyueLin/cmakeDemo)
