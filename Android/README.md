@@ -30,6 +30,27 @@
 [插件化](https://github.com/chaoyueLin/pluginDemo)
 
 ## 效率
+
+* implementation，特点是 将该依赖隐藏在内部，而不对外部公开。比如在组件化项目中，有一个 app module 和一个 base module，app moudle 引入了 base module。其中 base module 使用 implementation 依赖了 Glide 库，因为 implementation 是内部依赖，所以是无法调用到 Glide 库的功能的。因此 implementation 可 以 对外隐藏不必要的接口，并且，使用它可以有效地 提高编译速度。比如，在组件化项目中一般含有多个 Moudle 模块，如 Module A => Module B => Moudle C, 比如 改动 Moudle C 接口的相关代码，如果使用的是 implementation，这时候编译只需要单独编译 Module B 模块就行，但是如果使用 api 或者旧版本的 compile，由 于Module A 也可以访问到 Moudle C，所以 Module A  部分也需要重新编译。所以，在使用无错的情况下，可以优先使用 implementation。
+
+* InstantRun
+    1、减少构建和部署 app 到手机的时间。
+    2、热更新代码改动，无需重启 app 或者 activity。
+
+* ApplyChanges
+    找出 AndroidStudio 构建出来的 apk 和已经安装到手机设备 apk 的差异。找出差异后，然后将差异发送到手机上执行差异合并。
+    Apply Changes 的限制某些代码和资源更改必须在重启应用之后才能应用，其中包括以下更改
+        添加或删除方法或字段
+        更改方法签名
+        更改方法或类的修饰符
+        更改类继承行为
+        更改枚举中的值
+        添加或移除资源
+        更改应用清单
+        更改原生库（SO 文件）
+
+
+
 [ASM](https://github.com/chaoyueLin/asmDemo)
 
 [Gradle](https://github.com/chaoyueLin/GradleDemo)
