@@ -10,7 +10,7 @@
 
 
 ### Handler机制
-### Binder机制
+### [Binder机制](./Binder/Binder.md)
 ### 渲染机制,View,Touch事件分发
 
 [UI优化](https://github.com/chaoyueLin/uiDemo),[View的绘制--Project Butter](./Android/View的绘制/View的绘制.md),[View绘制的顺序缓存](./Android/View绘制的顺序缓存/View绘制的顺序缓存.md)
