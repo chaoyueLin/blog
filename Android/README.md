@@ -93,6 +93,7 @@
 
 ## [组件化](https://github.com/chaoyueLin/componentDemo)
 [ceventbus](https://github.com/chaoyueLin/cevnetbus)
+[架构演进](./架构演进.md)
 
 ## [插件化](https://github.com/chaoyueLin/pluginDemo)
 ## [平台化](./平台化.md)
