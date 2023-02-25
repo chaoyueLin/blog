@@ -24,12 +24,6 @@
 	* WMS
 
 
-
-## [组件化](https://github.com/chaoyueLin/componentDemo)
-[ceventbus](https://github.com/chaoyueLin/cevnetbus)
-
-[插件化](https://github.com/chaoyueLin/pluginDemo)
-
 ## 效率
 
 * implementation，特点是 将该依赖隐藏在内部，而不对外部公开。比如在组件化项目中，有一个 app module 和一个 base module，app moudle 引入了 base module。其中 base module 使用 implementation 依赖了 Glide 库，因为 implementation 是内部依赖，所以是无法调用到 Glide 库的功能的。因此 implementation 可 以 对外隐藏不必要的接口，并且，使用它可以有效地 提高编译速度。比如，在组件化项目中一般含有多个 Moudle 模块，如 Module A => Module B => Moudle C, 比如 改动 Moudle C 接口的相关代码，如果使用的是 implementation，这时候编译只需要单独编译 Module B 模块就行，但是如果使用 api 或者旧版本的 compile，由 于Module A 也可以访问到 Moudle C，所以 Module A  部分也需要重新编译。所以，在使用无错的情况下，可以优先使用 implementation。
@@ -92,10 +86,15 @@
 [获取线程锁](https://github.com/chaoyueLin/MonitorDemo),[卡顿、ANR、死锁，线上如何监控？](https://juejin.cn/post/6973564044351373326),[手Q Android线程死锁监控与自动化分析实践](https://cloud.tencent.com/developer/article/1064396)
 
 
-
-
-
 ## NDK
 [NDK开发](https://github.com/chaoyueLin/ndkDemo),[cmake](https://github.com/chaoyueLin/cmakeDemo)
 
 ## [Flutter](https://github.com/chaoyueLin/flutterDemo)
+
+## [组件化](https://github.com/chaoyueLin/componentDemo)
+[ceventbus](https://github.com/chaoyueLin/cevnetbus)
+[MVVM](./MVVM/MVVM.md)
+
+## [插件化](https://github.com/chaoyueLin/pluginDemo)
+## [平台化](./平台化.md)
+## [动态化](./动态化/动态化.md)
