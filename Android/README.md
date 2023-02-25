@@ -76,7 +76,7 @@
 [SDK开发指南](./SDK开发.md)
 
 ## 设计模式
-[mvvm](https://github.com/chaoyueLin/mvvmDemo),[mvi](https://github.com/chaoyueLin/mviDemo)
+[MVVM](https://github.com/chaoyueLin/mvvmDemo),[MVI](https://github.com/chaoyueLin/mviDemo)
 
 ## 卡顿
 [什么是卡顿](https://github.com/Tencent/matrix/wiki/Matrix-Android-TraceCanary),[Matrix-TraceCanary解析](https://blog.yorek.xyz/android/3rd-library/matrix-trace/)
@@ -93,7 +93,6 @@
 
 ## [组件化](https://github.com/chaoyueLin/componentDemo)
 [ceventbus](https://github.com/chaoyueLin/cevnetbus)
-[MVVM](./MVVM/MVVM.md)
 
 ## [插件化](https://github.com/chaoyueLin/pluginDemo)
 ## [平台化](./平台化.md)
