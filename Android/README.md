@@ -78,13 +78,15 @@
 ## 设计模式
 [MVVM](https://github.com/chaoyueLin/mvvmDemo),[MVI](https://github.com/chaoyueLin/mviDemo)
 
-## 卡顿
+## 性能优化
+### 卡顿
 [什么是卡顿](https://github.com/Tencent/matrix/wiki/Matrix-Android-TraceCanary),[Matrix-TraceCanary解析](https://blog.yorek.xyz/android/3rd-library/matrix-trace/)
 
 [什么是ANR](https://mp.weixin.qq.com/s?__biz=MzI1MzYzMjE0MQ==&mid=2247488116&idx=1&sn=fdf80fa52c57a3360ad1999da2a9656b&chksm=e9d0d996dea750807aadc62d7ed442948ad197607afb9409dd5a296b16fb3d5243f9224b5763&scene=178&cur_album_id=1780091311874686979#rd),[ANR dump](https://blog.csdn.net/stone_cold_cool/article/details/119464855),[高版本ANR日志获取](https://github.com/chaoyueLin/AnrTracerDemo),[BlockCanary 源码分析](https://blog.csdn.net/Love667767/article/details/106302877),[WatchDog原理](https://juejin.cn/post/6844904015524954126),[获取线程堆栈，cpu使用日志](https://github.com/chaoyueLin/threadDemo)
 
 [获取线程锁](https://github.com/chaoyueLin/MonitorDemo),[卡顿、ANR、死锁，线上如何监控？](https://juejin.cn/post/6973564044351373326),[手Q Android线程死锁监控与自动化分析实践](https://cloud.tencent.com/developer/article/1064396)
 
+### [内存优化](./内存优化/内存优化.md)
 
 ## NDK
 [NDK开发](https://github.com/chaoyueLin/ndkDemo),[cmake](https://github.com/chaoyueLin/cmakeDemo)
