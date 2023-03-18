@@ -88,6 +88,14 @@
 
 ### [内存优化](./内存优化/内存优化.md)
 
+### [启动优化](./启动优化.md)
+
+### [IO优化](./IO优化/IO优化.md)
+
+### [Crash治理](./Crash治理/Crash治理.md)
+
+### [自定义Lint](自定义Lint.md),[Profiler](./Profiler/Profiler.md)
+
 ## NDK
 [NDK开发](https://github.com/chaoyueLin/ndkDemo),[cmake](https://github.com/chaoyueLin/cmakeDemo)
 
