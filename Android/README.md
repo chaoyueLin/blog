@@ -2,26 +2,55 @@
 [Android系统启动](./Android系统启动/Android系统启动.md)
 ## Framework
 
+### [Context](./Context/Context.md)
+### [Handler](./Handler.md)
+### [Binder机制](./Binder/Binder.md),[IPC](./IPC.md)
+### Sharepreference
+### Window
+* Window类的唯一实现是PhoneWindow
+* Window三种类型都存在的情况下，显示层级用Type表示Window的类型，一共三种：
+    应用Window。对应着一个Activity，Window层级为1~99，在视图最下层。
+    子Window。不能单独存在，需要附属在特定的父Window之中(如Dialog就是子Window)，Window层级为1000~1999。
+    系统Window。需要声明权限才能创建的Window，比如Toast和系统状态栏，Window层级为2000-2999，处在视图最上层。
+
+* flags属性表示Window的属性，它有很多选项，我们这里只说三种，剩下的可以查看官方文档
+    FLAG_NOT_FOCUSABLEWindow不需要获得焦点，因此也不会接收各种输入事件，此标记会同时启用FLAG_NOT_TOUCH_MODAL标记位，无论代码中有没有明确设置这个标记位。设置了此状态意味着不需要和软键盘进行交互，因为它是Z-ordered的，独立于任何激活状态的软键盘。因此，它可以处于激活状态软键盘的上面，如果必要，可以覆盖软键盘。我们可以使用FLAG_ALT_FOCUSABLE_IM修改这个行为。
+    FLAG_NOT_TOUCH_MODAL，Window是否是modal状态。即使Window是可以获得焦点的（FLAG_NOT_FOCUSABLE没有设置），在Window外面的点击事件都会传递给后面的Window。否则，Window将会处理所有的点击事件，无论是否在它的范围内。
+    FLAG_SHOW_WHEN_LOCKED，Window可以显示在KeyGuard或者其他锁屏界面上。和FLAG_KEEP_SCREEN_ON一起使用可以在屏幕打开后直接显示Window，而不用经历KeyGuard。与FLAG_DISMISS_KEYGUARD一起使用可以自动跳过non-secure KeyGuard。此Flag只能用于最顶层全屏Window上。
+
+* 创建时机在ActivityThread的performLaunchActivity中创建Activity，并调用attach方法进行一些数据的初始化
+
 ### 四大组件
 
-	* Activity
-	* Service
-	* Broadcast
-	* ContentProvider
+* [Activity](./Activity/Activity.md)
+* [Service](./Service/Service.md)
+* Broadcast
+	* 注册类型
+	* 发送类型
+	* 带权限
+	* LocalBroadcast
+* ContentProvider,
+	* ContentProvider的底层是Binder，除了onCreate由系统回调运行在主线程中，其他五个方法运行在Binder线程池中，不是线程安全的。而如果在同一个进程访问ContentProvider，根据Binder的原理，同进程的Binder调用就是直接的对象调用，这个时候CRUD运行在调用者的线程中。
+	* 另外，ContentProvider的内部存储不一定是sqlite，它可以是任意数据。
 
 
-### Handler机制
-### [Binder机制](./Binder/Binder.md)
-### 渲染机制,View,Touch事件分发
+### [View](./View/View.md)
 
-[UI优化](https://github.com/chaoyueLin/uiDemo),[View的绘制--Project Butter](./View的绘制/View的绘制.md),[View绘制的顺序缓存](./View绘制的顺序缓存/View绘制的顺序缓存.md),[Android屏幕刷新](./Android屏幕刷新/Android屏幕刷新.md)
+* [UI优化](https://github.com/chaoyueLin/uiDemo),
+* [View的绘制](./View的绘制/View的绘制.md),[View绘制的顺序缓存](./View绘制的顺序缓存/View绘制的顺序缓存.md),[Android屏幕刷新](./Android屏幕刷新/Android屏幕刷新.md)
+* [RecycleView](./RecycleView/RecycleView.md),[ViewStub](./ViewStub/ViewStub.md)
 
-### Sharepreference
+### Fragment
+* 生命周期
+* FragmentTransaction
+* 回退栈
+* Activity通信
+
 ### [webview](https://github.com/chaoyueLin/webviewDemo)
 ### 重要的Service
-	* AMS
-	* PMS
-	* WMS
+* AMS
+* PMS
+* WMS
 
 
 ## 效率
@@ -33,16 +62,16 @@
     2、热更新代码改动，无需重启 app 或者 activity。
 
 * ApplyChanges
-    找出 AndroidStudio 构建出来的 apk 和已经安装到手机设备 apk 的差异。找出差异后，然后将差异发送到手机上执行差异合并。
-    Apply Changes 的限制某些代码和资源更改必须在重启应用之后才能应用，其中包括以下更改
-        添加或删除方法或字段
-        更改方法签名
-        更改方法或类的修饰符
-        更改类继承行为
-        更改枚举中的值
-        添加或移除资源
-        更改应用清单
-        更改原生库（SO 文件）
+找出 AndroidStudio 构建出来的 apk 和已经安装到手机设备 apk 的差异。找出差异后，然后将差异发送到手机上执行差异合并。Apply Changes 的限制某些代码和资源更改必须在重启应用之后才能应用，其中包括以下更改
+        
+	* 添加或删除方法或字段
+    * 更改方法签名
+    * 更改方法或类的修饰符
+    * 更改类继承行为
+    * 更改枚举中的值
+    * 添加或移除资源
+    * 更改应用清单
+    * 更改原生库（SO 文件）
 
 
 
