@@ -13,7 +13,7 @@
 
 ## [Java](/Java/README.md)
 
-## [C++](/C++/README.md)
+## [C++](https://github.com/chaoyueLin/cppDemo)
 
 ## Python
 [Python](https://github.com/chaoyueLin/pythonDemo),[python在web开发](https://github.com/chaoyueLin/awesome-python-webapp)
