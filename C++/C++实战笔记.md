@@ -1,7 +1,7 @@
 
 ## 预处理
 
- #include”其实是非常“弱”的，不做什么检查，就是“死脑筋”把数据合并进源文件
+	#include”其实是非常“弱”的，不做什么检查，就是“死脑筋”把数据合并进源文件
 
 	static uint32_t  calc_table[] = {
 	#  include "calc_values.inc"        // 非常大的一个数组，细节被隐藏
@@ -143,6 +143,62 @@ assert 虽然是一个宏，但在预处理阶段不生效，而是在运行阶�
 	        f(-1);
 	        return 0;
 	}
+
+### 异常安全
+异常安全是指当异常发生时，既不会发生资源泄漏，系统也不会处于一个不一致的状态。
+
+
+	#include <iostream>
+	#include <stdexcept>
+	
+	using namespace std;
+	
+	class matrix
+	{
+	public:
+	  friend matrix
+	  operator*(const matrix&,
+	            const matrix&);
+	    matrix(size_t nrows, size_t ncols) : nrows_(nrows), ncols_(ncols)
+	    {
+	        data_ = new float[nrows * ncols];
+	    }
+	    ~matrix()
+	    {
+	        delete[] data_;
+	    }
+	
+	private:
+	    float *data_;
+	    size_t nrows_;
+	    size_t ncols_;
+	};
+	
+	matrix operator*(const matrix& lhs,
+	                 const matrix& rhs)
+	{
+	  if (lhs.ncols_ != rhs.nrows_) {
+	    throw std::runtime_error(
+	      "matrix sizes mismatch");
+	  }
+	  matrix result(lhs.nrows_, rhs.ncols_);
+	  // 进行矩阵乘法运算
+	  return result;
+	}
+	
+	int main()
+	{
+	    matrix a(5, 5);
+	    matrix b(5, 5);
+	    matrix c = a * b;
+	}
+
+使用虽然没有catch异常，但是仍然是异常安全的，看看可能会出现错误 / 异常的地方：首先是内存分配。
+* 如果 new 出错，按照 C++ 的规则，一般会得到异常 bad_alloc，对象的构造也就失败了。这种情况下，在 catch 捕捉到这个异常之前，所有的栈上对象会全部被析构，资源全部被自动清理。
+* 如果是矩阵的长宽不合适不能做乘法呢？我们同样会得到一个异常，这样，在使用乘法的地方，对象 c 根本不会被构造出来。
+* 如果在乘法函数里内存分配失败呢？一样，result 对象根本没有构造出来，也就没有 c 对象了。还是一切正常。
+* 如果 a、b 是本地变量，然后乘法失败了呢？析构函数会自动释放其空间，我们同样不会有任何资源泄漏。
+
 
 ## 处理文本
 string 其实并不是一个“真正的类型”，而是模板类 basic_string 的特化形式，是一个 typedef：
