@@ -98,8 +98,8 @@
 ## 虚拟机
 [深入理解Android虚拟机ART](./深入理解Android虚拟机ART/README.md),
 [Java 虚拟机和Dalvik区别](./Java虚拟机和Dalvik区别/Java虚拟机和Dalvik区别.md),
-[Dalvik和ART和HotSpot](./Dalvik和ART和HotSpot/Dalvik和ART和HotSpot.md)
-
+[Dalvik和ART和HotSpot](./Dalvik和ART和HotSpot/Dalvik和ART和HotSpot.md),
+[ClassLoader双亲委派机制](./ClassLoader双亲委派机制/双亲委派机制.md)
 
 ## SDK
 [SDK开发指南](./SDK开发.md)
