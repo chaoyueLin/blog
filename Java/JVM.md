@@ -162,6 +162,34 @@ JVM
 
 - 双亲委派模型
 
+     1.首先从已加载类中查找，如果能够找到则直接返回，找不到则调用 parent classloader 的 loadClass 进行查找；
+
+     2.如果 parent clasloader 能找到相关类则直接返回，否则调用 findClass 去进行类加载；
+
+     ```
+          protected Class<?> loadClass(String name, boolean resolve)
+     throws ClassNotFoundException
+     {
+          Class<?> c = findLoadedClass(name);
+          if (c == null) {
+               try {
+                    if (parent != null) {
+                         c = parent.loadClass(name, false);
+                    } else {
+                         c = findBootstrapClassOrNull(name);
+                    }
+               } catch (ClassNotFoundException e) {
+               }
+
+               if (c == null) {
+                    c = findClass(name);
+               }
+          }
+          return c;
+     }
+     ```
+
+
 
 - 编译器优化
 
