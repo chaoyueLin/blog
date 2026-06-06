@@ -3,7 +3,7 @@ cat config.pbtx | adb shell perfetto -c - --txt -o /data/misc/perfetto-traces/tr
 adb pull /data/misc/perfetto-traces/trace.pftrace
 
 config.pbtx
-...
+```
 buffers {
   size_kb: 65536
   fill_policy: DISCARD
@@ -22,12 +22,12 @@ data_sources {
   }
 }
 duration_ms: 10000
-...
+```
 
 
 config_cpu.pbtx
 
-...
+```
 buffers: {
     size_kb: 522240
     fill_policy: RING_BUFFER
@@ -156,12 +156,12 @@ flush_period_ms: 30000
 incremental_state_config {
     clear_period_ms: 5000
 }
-
+```
 
 
 config_id.pbtx
 
-...
+```
 
 buffers: {
     size_kb: 30720
@@ -284,12 +284,12 @@ file_write_period_ms: 2000
 max_file_size_bytes: 1500000000
 flush_period_ms: 3000
 
-...
+```
 
 
 config_native_heap.pbtx
 
-...
+```
 buffers: {
     size_kb: 634880
     fill_policy: DISCARD
@@ -339,7 +339,7 @@ data_sources {
     name: "android.packages_list"
   }
 }
-
+```
 
 ...
 
