@@ -20,4 +20,4 @@
 
 [JIT](./JIT.md)，[JVM](./JVM.md)，[字节码](./字节码.md)，
 
-[EffectiveJava 第三版](./EffectiveJava第三版.md)，[Java并发编程艺术](./Java并发编程艺术.md)，[码出高效：Java开发手册](./码出高效：Java开发手册.md)
+[EffectiveJava 第三版](./EffectiveJava%20第三版.md)，[Java并发编程艺术](./Java并发编程艺术.md)，[码出高效：Java开发手册](./码出高效：Java开发手册.md)

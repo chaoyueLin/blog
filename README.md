@@ -1,17 +1,17 @@
 # Blog
 以往的博客文章散落在csdn，简书，掘金等，现在归纳在这里
 
-## [Android](/Android/README.md)
+## [Android](./Android/README.md)
 
 ## [Kotlin](https://github.com/chaoyueLin/kotlinDemo)
 
-## [Linux](/Linux/README.md)
+## [Linux](./Linux/README.md)
 
 ## [网络](./网络/README.md)
 
-## [音视频](音视频/README.md)
+## [音视频](./音视频/README.md)
 
-## [Java](/Java/README.md)
+## [Java](./Java/README.md)
 
 ## [C++](https://github.com/chaoyueLin/cppDemo)
 
@@ -35,6 +35,6 @@
 [设计模式](./designPattern/designPattern.md),[单例,装饰,代理](./designPattern/单例,装饰,代理.md)
 [控制反转](./designPattern/IoC.md),[有限状态机](https://github.com/chaoyueLin/stateDemo),[生产消费者](./designPattern/生产消费者.md)
 
-## [Other](/Other/README.md)
+## [Other](./Other/README.md)
 
 

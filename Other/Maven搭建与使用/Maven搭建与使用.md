@@ -41,7 +41,7 @@ dependency 依赖
 ## Nexus配置
 ![](./4.png)
 
-![](.5.png)
+![](./5.png)
 
 ## 项目中的组件化一般流程需要两个配置文件
 1.maven_push.gradle文件
