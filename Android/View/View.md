@@ -1,17 +1,6 @@
 # View
 
 
-## view,activity,window关系
-
-
-- window创建过程-->ActivityThread.perfomLaunchActivity()的attach()创建PhoneWindow,mWindow = new PhoneWindow(this, window, activityConfigCallback);mWindow.setWindowManager((WindowManager)context.getSystemService(Context.WINDOW_SERVICE),mToken,
-![](./1.jpg)
-
-- onResume() Window 显示过程,ActivityThread.performResumeActivity-->onResume-->WindowManagerImpl.addView-->new ViewRootImpl
-![](./2.jpg)
-
-- ViewRootImpl，ViewRoot是GUI管理系统与GUI呈现系统之间的桥梁。每一个ViewRootImpl关联一个Window，ViewRootImpl最终会通过它的setView方法绑定Window所对应的View，并通过其performTraversals方法对View进行布局、测量和绘制
-
 
 ## 绘制流程
 ![](./3.jpg)

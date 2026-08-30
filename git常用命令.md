@@ -154,3 +154,8 @@
 	> git rebase --onto master 76cada^
 	
 	得到的结果就是feature分支的commit 76cada ~62ecb3 都被合并到了master分支。
+
+
+## 环境切换
+git config --global url."https://ghfast.top/https://github.com/".insteadOf "https://github.com/"
+git config --global --unset url."https://ghfast.top/https://github.com/".insteadOf

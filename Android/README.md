@@ -77,6 +77,7 @@
 
 ## 性能优化
 ### 卡顿
+### [卡顿总结（掉帧原理、检测原理、ANR与死锁监控）](../Android%20卡顿%20·%20掉帧原理、BlockCanary与Matrix检测、ANR与死锁监控.md)
 [什么是卡顿](https://github.com/Tencent/matrix/wiki/Matrix-Android-TraceCanary),[Matrix-TraceCanary解析](https://blog.yorek.xyz/android/3rd-library/matrix-trace/)
 
 [什么是ANR](https://mp.weixin.qq.com/s?__biz=MzI1MzYzMjE0MQ==&mid=2247488116&idx=1&sn=fdf80fa52c57a3360ad1999da2a9656b&chksm=e9d0d996dea750807aadc62d7ed442948ad197607afb9409dd5a296b16fb3d5243f9224b5763&scene=178&cur_album_id=1780091311874686979#rd),[ANR dump](https://blog.csdn.net/stone_cold_cool/article/details/119464855),[高版本ANR日志获取](https://github.com/chaoyueLin/AnrTracerDemo),[BlockCanary 源码分析](https://blog.csdn.net/Love667767/article/details/106302877),[WatchDog原理](https://juejin.cn/post/6844904015524954126),[获取线程堆栈，cpu使用日志](https://github.com/chaoyueLin/threadDemo)

@@ -1,4 +1,4 @@
-# Android 内存管理 · GC机制、内存抖动、内存泄漏、LeakCanary原理（Markdown面试完整版）
+# Android 内存管理 · GC机制、内存抖动、内存泄漏、LeakCanary原理
 ## 一、Android 垃圾回收 GC 机制
 ### 1. 基础概念
 GC（Garbage Collection）：虚拟机自动回收**无有效引用指向、不再使用的堆内存对象**，释放内存给系统复用；Android 使用 ART 虚拟机 GC，废弃了早期 Dalvik 标记清除。
@@ -148,7 +148,64 @@ GC Roots 是虚拟机认定的存活起点，被GC Roots直达强引用的对象
 ### 4. LeakCanary 优化点
 不会频繁dump hprof（dump卡顿极大），只确认泄漏后抓取；低版本ART兼容；自动过滤系统非业务泄漏。
 
-## 五、面试高频汇总问答
+## 五、KOOM 高性能线上内存监控（快手）
+
+### 1. 整体定位
+KOOM（Kwai OOM）是快手开源的高性能**线上** OOM 监控方案，覆盖 Java Heap、Native Heap、Thread、FD 泄漏；核心解决 LeakCanary/Matrix dump 时冻结主进程、只能线下使用的痛点，实现线上大规模部署、低开销。
+
+### 2. 触发机制：内存阈值检测（区别于 LeakCanary）
+LeakCanary 靠 `Activity.onDestroy` + 主动 GC 触发（频繁 GC 会卡顿）；KOOM 改为**阈值检测**：
+1. MonitorThread（HandlerThread）周期轮询，默认 5s 一次，调用 `HeapMonitor.isTrigger()` 判断是否触发
+2. 通过 `Runtime.getRuntime()` 取 maxMemory / totalMemory / freeMemory，计算已用内存占比
+3. **动态阈值按机型内存分级**：maxMem ≥ 510M → 超 80% 触发；≥ 250M → 85%；≥ 128M → 90%；最大阈值统一 **95%**（超过强制触发，防止 OOM 崩溃后 dump 不到现场）
+4. 连续 **3 次**超阈值 → 认定泄漏触发 dump；内存回落则重置计数
+5. 内置五种检测器：HeapOOMTracker、ThreadOOMTracker、FdOOMTracker、PhysicalMemoryOOMTracker、FastHugeMemoryOOMTracker（高危检测：内存超 90% 或两次检测增长超 350M 即 dump）
+
+### 3. Fork Dump：无感知堆镜像采集（核心创新）
+- 问题：传统 `Debug.dumpHprofData` 会 STW，冻结应用数秒甚至数十秒
+- 方案：利用内核 **COW（Copy-on-Write 写时复制）**——fork 子进程，父子共享内存页，子进程写入时才拷贝独立内存，父进程几乎零开销：
+  1. `art::Dbg::SuspendVM` 暂停虚拟机 → `fork()` 子进程 → 父进程立即 `resume` 恢复运行
+  2. 子进程执行 `dumpHprofData` 输出 hprof（native 层 `suspendAndFork()` / `resumeAndWait(pid)`）
+  3. 父进程冻结总耗时仅**几毫秒**（<100ms），用户完全无感知
+- 兼容性：Android 7.0 起限制 App 调用系统库，快手自研 **kwai-linker**（caller address 替换 + `dl_iterate_phdr` 解析）绕过限制
+
+### 4. hprof 解析与报告（本地边缘计算）
+- 闲时在独立进程单线程本地分析，分析完即删除镜像，不占磁盘
+- 上传的只是 **KB 级报告**，不消耗用户流量
+- 解析三环节：扫描镜像构建索引 → 根据 framework 知识及策略判定泄漏对象（泄漏判定延迟到解析阶段，而非监控阶段）→ 生成报告（泄漏路径、数量、类统计、运行时信息）
+- 镜像裁剪：运行时 hook 只保留分析 OOM 必需的类与对象组织结构，不上传真实业务数据，兼顾流量与隐私
+
+### 5. KOOM vs LeakCanary 对比（面试高频）
+
+| 维度 | LeakCanary | KOOM |
+|---|---|---|
+| 定位 | 开发期泄漏检测（线下） | 线上大规模 OOM 监控 |
+| 触发方式 | Activity.onDestroy + 延迟主动 GC | 内存阈值检测（不主动 GC），连续超阈值触发 |
+| dump 影响 | 进程内 dump，STW 秒级卡顿 | fork 子进程 + COW，主进程仅毫秒级冻结 |
+| 检测范围 | 主要定位 Activity/Fragment/View 泄漏 | Java / Native / Thread / FD，大对象、频繁分配 |
+| 结果消费 | 本机弹窗 + 引用链展示 | 本地分析、上传 KB 级报告，后端聚合报警 |
+
+参考：[KOOM GitHub](https://github.com/KwaiAppTeam/KOOM)、[快手开源KOOM浅析](https://zhuanlan.zhihu.com/p/411811259)
+
+## 六、字节 Kenzo（Memory Insight）内存监控
+
+### 1. 定位
+字节抖音团队自研的内存监控工具，解决**动态内存分配造成的 GC 卡顿**（内存抖动）问题，是对静态内存占用（OOM）治理之外的补充——LeakCanary/KOOM 找"回收不了的对象"，Kenzo 找"频繁创建的对象"。
+
+### 2. 原理：基于 JVMTI 事件回调
+JVMTI（JVM Tool Interface）是虚拟机提供的 native 编程接口；Kenzo 以 Agent 形式集成，通过 `Jvmti SetEventCallbacks` 注册回调，从虚拟机获取运行态信息，hook 四类事件：
+1. **ClassPrepare**：类加载准备事件 → 监控类加载
+2. **GarbageCollectionStart / GarbageCollectionFinish**：监控 GC 事件与耗时
+3. **ObjectFree**：GC 释放对象时触发 → 监控对象释放
+4. **VMObjectAlloc**：虚拟机分配对象时触发 → 监控内存分配
+
+### 3. 框架设计（生产端 / 消费端）
+1. **生产端**：以 SDK 形式集成到宿主 App，采集内存数据
+2. **消费端**：处理生产端数据，输出可视化报表（哪些类频繁分配、GC 耗时分布等）
+
+参考：[抖音 Android 性能优化系列：Java 内存优化（Kenzo 原理）](https://blog.csdn.net/weixin_49559515/article/details/112191133)
+
+## 七、面试高频汇总问答
 1. 内存泄漏和内存抖动区别？
 内存泄漏：对象永久无法回收，内存持续上涨；内存抖动：频繁创建销毁小对象，内存锯齿状起伏，高频GC卡顿。
 
@@ -164,10 +221,12 @@ Activity持有窗口、View资源，生命周期短；静态变量生命周期�
 5. 怎么手动排查内存问题？
 Android Studio Profiler（内存面板）、MAT分析hprof、LeakCanary自动化检测。
 
-## 六、优化总结
+6. LeakCanary 为什么只能线下用，KOOM 为什么能上线上？
+LeakCanary 靠 onDestroy 后主动 GC + 进程内 dump hprof（STW 秒级卡顿）、本机弹窗展示，只适合开发调试；KOOM 用内存阈值触发（不主动 GC）、fork 子进程 + COW 毫秒级 dump、本地解析只上传 KB 级报告，开销低，适合线上大规模部署。
+
+## 八、优化总结
 1. 规避内存泄漏：及时取消异步、反注册监听、静态慎用页面引用、销毁置空资源
 2. 解决内存抖动：复用对象、减少循环内临时创建、优化onDraw逻辑
 3. GC优化：减少短命大对象，图片压缩采样加载，使用内存缓存
-4. 检测工具：LeakCanary、Profiler、MAT
+4. 检测工具：LeakCanary、Profiler、MAT；线上监控 KOOM（OOM）、Kenzo（GC/分配）
 
-内容由 AI 生成

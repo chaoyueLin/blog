@@ -1,0 +1,158 @@
+# Android 卡顿 · 掉帧原理、BlockCanary与Matrix检测、ANR与死锁监控
+
+## 一、卡顿本质与渲染链路
+### 1. 什么是卡顿
+屏幕刷新由 VSYNC 信号驱动，60Hz 屏幕每 **16.6ms** 刷新一帧；如果一帧的准备工作（输入处理、动画、测量、布局、绘制）超过 16.6ms，这一帧就无法按时提交合成，产生**掉帧**，用户感知为卡顿。高刷屏（90/120Hz）预算更短（11.1ms / 8.3ms），要求更高。
+
+### 2. Android 渲染链路
+1. 系统每 16.6ms 发出 **VSYNC** 信号
+2. **Choreographer.doFrame()** 依次执行四个回调队列：
+   - `CALLBACK_INPUT`：处理输入事件
+   - `CALLBACK_ANIMATION`：执行动画
+   - `CALLBACK_TRAVERSAL`：measure → layout → draw
+   - `CALLBACK_COMMIT`：提交绘制结果
+3. 绘制结果通过 BufferQueue 交给 **SurfaceFlinger 合成**上屏
+
+任何一环耗时超过帧周期 → 掉帧 → 卡顿。
+
+### 3. 卡顿 vs ANR
+- **卡顿**：掉帧、主观体验差，不崩溃、无系统日志
+- **ANR**：主线程/服务超时未响应，**系统判定**并弹窗，必留 traces 日志
+- 关系：卡顿不一定 ANR；ANR 一定伴随长时间卡顿（通常是死锁、超长耗时操作）
+
+## 二、卡顿常见原因
+1. **主线程耗时操作**：IO、网络、数据库、JSON 解析、复杂计算
+2. **布局问题**：层级过深、overdraw、频繁 requestLayout
+3. **频繁 GC / 内存抖动**：高频 Minor GC 带来持续 STW（详见[内存管理文章](./Android%20内存管理%20·%20GC机制、内存抖动、内存泄漏、LeakCanary原理.md)）
+4. **锁竞争 / 死锁**：主线程等待其他线程持有的锁，线程间循环等待
+5. **CPU 负载高 / 降频**：大小核调度不合理、核心被抢占、温度墙降频
+6. **消息队列堆积**：大量消息集中处理，单个消息耗时过长
+
+## 三、卡顿检测原理（核心考点）
+### 1. BlockCanary：Looper Printer 监控
+1. 调用 `Looper.getMainLooper().setMessageLogging(printer)` 设置自定义 Printer
+2. 主线程每处理一条消息，Looper 会在前后打印 `>>>>> Dispatching to` / `<<<<< Finished to`
+3. Printer 根据首字符 `>` / `<` 判断消息开始/结束，计算**时间差**
+4. 超过阈值（默认 **500ms**）→ 判定卡顿 → dump 主线程堆栈 + CPU 信息，通知栏/页面展示
+
+**局限**：只能知道"某条消息慢了"，不知道具体慢在哪一步（输入/动画/绘制）、慢在哪个函数。
+
+### 2. Matrix TraceCanary（腾讯，面试高频）
+基于 **ASM 编译期字节码插桩**，四大追踪器（Tracer）：
+
+#### （1）LooperMonitor —— 主线程消息监控（基础设施）
+- 原理同 BlockCanary：setMessageLogging Printer 监听消息分发，注册 LooperDispatchListener 回调 dispatchStart/dispatchEnd
+- 额外实现 `MessageQueue.IdleHandler`，空闲时 resetPrinter，防止 Printer 被其他组件替换
+
+#### （2）EvilMethodTracer —— 慢函数检测（核心优势）
+- 编译期对**所有方法插桩**，运行时每个方法前后调用 `MethodBeat.i()/o()`，把方法 id + 时间 offset 写入预分配的**环形缓冲区**（约 7.6MB）
+- 消息分发耗时超过阈值（默认 **700ms**）→ 从 buffer 提取这段时间内的方法调用记录（方法 id、耗时、调用深度，最多 30 个）
+- 生成 **stackKey** 供后台聚合；配合 methodMapping.txt（方法 id → 类名/方法名）还原堆栈，可生成**火焰图**
+- 插桩细节：在 proguard 混淆之后插桩（避免影响内联优化）；过滤 get/set、构造等简单方法，减少开销
+
+#### （3）FrameTracer —— FPS 帧率监控
+- API ≥ 24：用 `Window.OnFrameMetricsAvailableListener`（FrameMetrics API）收集每帧 INPUT_HANDLING / ANIMATION / LAYOUT_MEASURE / DRAW / SWAP_BUFFERS / TOTAL 各阶段耗时
+- 掉帧分级：normal [3,9) / middle [9,24) / high [24,42) / frozen [42,∞) 帧
+- 悬浮窗实时展示 FPS 与各阶段耗时分解
+
+#### （4）ANR 检测：双机制
+- **LooperAnrTracer**（Looper 机制）：dispatchBegin 时往后台线程 postDelayed 一个 5s 的 AnrHandleTask，dispatchEnd 时删除；**5s 后任务仍在 → 判定 ANR**，同时用 AppMethodBeat 的索引记录把 ANR 前后的方法调用轨迹（beginRecord → 当前 index）一并上报
+- **SignalAnrTracer**（信号机制）：native 组件 AnrDumper 捕获系统 ANR 时发出的 **SIGQUIT 信号**，同步采集堆栈和诊断信息
+
+#### （5）UIThreadMonitor —— 帧阶段耗时统计
+- 通过**反射**拿到 Choreographer 的 mCallbackQueues，把自己的回调插入**队列头部**（postCallback 只能排尾部，无法统计系统 input/animation/traversal 的耗时）
+- 配合 LooperDispatchListener 的时间戳，算出每个阶段（输入/动画/遍历绘制）各耗时多少，定位卡顿发生在哪一阶段
+- 新版已被 LooperMonitor 方案取代，但思想是面试常考点
+
+#### BlockCanary vs Matrix TraceCanary
+
+| 维度 | BlockCanary | Matrix TraceCanary |
+|---|---|---|
+| 监控粒度 | 整条消息耗时 | 消息 + 帧阶段 + **方法级耗时** |
+| 定位能力 | 只知道卡了 | 定位到具体函数/阶段，可出火焰图 |
+| 实现成本 | 轻量，接入即用 | 需编译期插桩 + mapping 文件 |
+| ANR 检测 | 无 | 双机制（Looper 超时 + SIGQUIT） |
+| 适用场景 | 开发期快速排查 | 线上大规模监控上报 |
+
+### 3. WatchDog 原理（ANR 监控通用方案）
+1. 起一个**子线程**，周期（默认 5s）通过 Handler 向主线程 post 一条心跳消息，同时维护 tick 计数
+2. 主线程执行消息后更新 tick
+3. 子线程下次检查时发现 **tick 没变 → 主线程没响应心跳 → 判定主线程阻塞（疑似 ANR）**
+4. dump 主线程堆栈上报
+
+本质：**用子线程的心跳消息验证主线程的存活状态**，消息发不出去或执行不了都说明主线程卡死了。
+
+## 四、ANR 机制与日志获取
+### 1. ANR 判定与类型
+ANR 判定在 **system_server**（AMS / InputDispatcher），常见超时：
+1. **输入事件**：InputDispatcher 5s 内未处理 key/touch 事件
+2. **广播**：BroadcastReceiver onReceive 前台 10s / 后台 60s
+3. **服务**：Service 生命周期前台 20s / 后台 200s（Android 12 起后台放宽）
+4. **ContentProvider**：发布超时
+
+### 2. ANR 处理流程
+判定超时 → `appNotResponding` → 系统向进程发 **SIGQUIT(3)** 信号 → 进程信号处理线程 **dump 所有线程堆栈** → 写入 `/data/anr/traces.txt` → 弹 ANR 对话框。
+
+### 3. 高版本日志获取
+系统一直限制 `/data/anr` 的访问权限（普通 App 无法直接读取），高版本进一步收紧，获取途径：
+1. `adb bugreport` 抓完整诊断包
+2. 开发者选项、root 环境直接读文件
+3. **App 内自建监控**（如 [AnrTracerDemo](https://github.com/chaoyueLin/AnrTracerDemo)）：不依赖系统日志，用 WatchDog 思路自己检测主线程阻塞并采集堆栈上报
+
+## 五、线上死锁监控（手Q 方案，面试加分）
+### 1. 方案架构
+- **客户端**：监控线程（WatchThread）监控被监控线程的 **Looper 消息执行**——一条出队列的消息在**默认 3 分钟**内没执行完 → 判定该线程**卡死**，获取线程持有/等待的锁信息并上报
+- **后台**：自动化分析锁关系，判断是否死锁，自动提单跟进
+- 注意：监控的是"卡死"（含死锁、网络/IO 阻塞、HashMap 冲突等），死锁只是其中最重要的一类
+
+### 2. 锁关系从哪里来（关键难点）
+1. **Java 线程堆栈不行**：`Thread.getStackTrace()` 拿不到 synchronized 锁信息，无法还原锁关系
+2. **系统 traces.txt 可行**：向进程发 **SIGQUIT**，系统 dump 的 traces 包含线程状态（BLOCKED）和锁信息（`waiting to lock` / `locked by`），可还原"谁持有、谁在等"
+3. **LockSupport 锁的坑**：系统堆栈不直接包含 LockSupport 锁信息，不同线程阻塞在同一个 LockSupport 锁对象上的地址各不相同 → 客户端**主动记录 LockSupport 锁信息**，让不同地址指向同一把锁，后台才能建立锁关系
+
+### 3. 后台自动化分析
+还原线程间锁关系 → 识别**死锁**（循环等待）与其他非死锁卡死（网络、文件 IO 等）→ 输出各类卡死占比 → 自动提单。
+
+
+## 七、面试高频汇总问答
+1. 为什么说一帧 16.6ms？
+60Hz 屏幕每秒刷新 60 次，每帧预算 = 1000ms / 60 ≈ 16.6ms；VSYNC 每 16.6ms 触发一次 Choreographer.doFrame，超时未完成就掉帧。
+
+2. BlockCanary 的原理与局限？
+原理：Looper.setMessageLogging(Printer) 监听消息分发前后日志的时间差，超过阈值 dump 主线程堆栈。局限：只能知道整条消息慢，无法定位到具体阶段和具体函数。
+
+3. Matrix TraceCanary 相比 BlockCanary 强在哪？
+编译期字节码插桩记录**方法级耗时**（AppMethodBeat 环形缓冲），能定位到具体耗时函数、生成火焰图；FrameMetrics 分析帧各阶段耗时；ANR 双机制检测；支持启动耗时监控，适合线上规模化上报。
+
+4. 卡顿和 ANR 的区别？
+卡顿是掉帧、体验问题，不崩溃、无系统日志；ANR 是系统判定主线程超时无响应（输入 5s、广播 10s/60s、服务 20s/200s），会弹窗并强制 dump traces。卡顿不一定 ANR，ANR 一定伴随长时间卡顿。
+
+5. WatchDog 如何实现 ANR 监控？
+子线程周期（默认 5s）向主线程 post 心跳消息 + tick 计数；下次检查时 tick 未更新说明主线程没响应心跳，判定阻塞，dump 主线程堆栈上报。
+
+6. 线上如何监控死锁？
+手Q 方案：监控线程看被监控线程的 Looper 消息是否超时（默认 3 分钟）未执行完 → 判定卡死；通过 SIGQUIT 获取系统 traces 中的 BLOCKED 状态和锁关系（Java 堆栈没有锁信息）；LockSupport 锁需客户端主动记录做关联；后台分析锁链识别死锁。
+
+7. Choreographer 在渲染中的作用？
+接收 VSYNC 信号，在 doFrame 中依次执行 CALLBACK_INPUT（输入）、CALLBACK_ANIMATION（动画）、CALLBACK_TRAVERSAL（measure/layout/draw）、CALLBACK_COMMIT（提交）四个队列，是每帧渲染的调度核心。
+
+8. 高版本 Android 如何获取 ANR 日志？
+系统限制 /data/anr 访问，可用 adb bugreport、开发者选项或 root 获取；线上靠 App 内自建监控（WatchDog 检测 + 堆栈采集上报，或捕获 SIGQUIT 信号），不依赖系统日志文件。
+
+## 八、优化总结
+1. 主线程异步化：IO、网络、DB、JSON 解析移到子线程，主线程只做 UI
+2. 布局优化：减少层级（ConstraintLayout）、ViewStub 懒加载、避免 overdraw、少用嵌套 requestLayout
+3. 列表优化：ViewHolder 复用、异步预加载、避免 item 内重复创建对象
+4. 内存治理：减少内存抖动和频繁 GC（GC 的 STW 直接造成掉帧）
+5. 锁治理：缩小锁粒度、统一锁顺序避免死锁、优先用原子类/无锁并发
+6. 检测工具：BlockCanary（开发期）、Matrix TraceCanary（线上监控）、Perfetto/Systrace（分析定位）、WatchDog（ANR）
+
+## 参考
+- [Matrix TraceCanary 官方 Wiki（什么是卡顿）](https://github.com/Tencent/matrix/wiki/Matrix-Android-TraceCanary)
+- [Matrix TraceCanary 解析（yorek）](https://blog.yorek.xyz/android/3rd-library/matrix-trace/)
+- [Matrix 之 TraceCanary 源码分析（阿里云开发者社区）](https://developer.aliyun.com/article/1035876)
+- [BlockCanary 源码分析](https://blog.csdn.net/Love667767/article/details/106302877)
+- [WatchDog 原理](https://juejin.cn/post/6844904015524954126)
+- [卡顿、ANR、死锁，线上如何监控？](https://juejin.cn/post/6973564044351373326)
+- [手Q Android 线程死锁监控与自动化分析实践（腾讯云）](https://cloud.tencent.com/developer/article/1064396)
+- [高版本 ANR 日志获取 AnrTracerDemo](https://github.com/chaoyueLin/AnrTracerDemo)、[获取线程堆栈/cpu 日志 threadDemo](https://github.com/chaoyueLin/threadDemo)、[获取线程锁 MonitorDemo](https://github.com/chaoyueLin/MonitorDemo)
