@@ -128,6 +128,8 @@
 
 ## 事件分发
 
+### 系统级事件输入流程
+
 - WMS,InputManagerService,inputManager,Window,ViewRootImpl
 
 - ActivityThread负责控制Activity的启动过程，在ActivityThread.performLaunchActivity()流程中，ActivityThread会针对Activity创建对应的PhoneWindow和DecorView实例，而在ActivityThread.handleResumeActivity()流程中，ActivityThread会将获取当前Activity的WindowManager，并将DecorView和WindowManager.LayoutParams(布局参数)作为参数调用addView()函数,ActivityThread.handleResumeActivity()流程中最终创建了ViewRootImpl，并通过setView()函数对DecorView开始了绘制流程的三个步骤。
@@ -144,21 +146,224 @@
 
     - 3.向DecorView分发收到的用户发起的InputEvent事件。
 
-- UI事件的分发
+### 分发流程
 
+- 基础概念
+    - 触摸事件载体：`MotionEvent`
+    - 一次完整事件序列：**DOWN → 若干MOVE → UP / CANCEL**
+    - 重点：**DOWN事件如果没有任何View消费，整条事件序列直接作废，后续MOVE、UP不会下发**
+    - 事件传递链路：`Activity → DecorView(根ViewGroup) → ViewGroup → 子ViewGroup → View`
+    - 三大核心方法：
+        - `dispatchTouchEvent()`：事件分发入口，**Activity、ViewGroup、View全部拥有**
+        - `onInterceptTouchEvent()`：**仅ViewGroup独有**，判断是否拦截事件
+        - `onTouchEvent()`：消费事件，ViewGroup、View都具备
+
+- Activity 层
+    - `Activity.dispatchTouchEvent()` → Window → DecorView（根ViewGroup）
     - DecorView作为View树的根节点，接收到屏幕触摸事件MotionEvent时，应该通过递归的方式将事件分发给子View，这似乎理所当然。但实际设计中，设计者将DecorView接收到的事件首先分发给了Activity，Activity又将事件分发给了其Window，最终Window才将事件又交回给了DecorView，形成了一个小的循环,对于DecorView而言，它承担了2个职责：
+        - 1.在接收到输入事件时，DecorView不同于其它View，它需要先将事件转发给最外层的Activity，使得开发者可以通过重写Activity.onTouchEvent()函数以达到对当前屏幕触摸事件拦截控制的目的，这里DecorView履行了自身（根节点）特殊的职责；
+        - 2.从Window接收到事件时，作为View树的根节点，将事件分发给子View，这里DecorView履行了一个普通的View的职责。
 
-         - 1.在接收到输入事件时，DecorView不同于其它View，它需要先将事件转发给最外层的Activity，使得开发者可以通过重写Activity.onTouchEvent()函数以达到对当前屏幕触摸事件拦截控制的目的，这里DecorView履行了自身（根节点）特殊的职责；
+- ViewGroup 分发逻辑
 
-         - 2.从Window接收到事件时，作为View树的根节点，将事件分发给子View，这里DecorView履行了一个普通的View的职责。
+```text
+ViewGroup.dispatchTouchEvent()
+    ↓
+执行 onInterceptTouchEvent()
+├─ 返回 true：拦截事件，不再下发子View，交给当前ViewGroup onTouchEvent()
+└─ 返回 false：不拦截，从上层子View到下层（倒序遍历）递归分发
+        ↓
+        子View.dispatchTouchEvent()
+            ├─ 子View消费成功(true) → 终止传递，逐层向上返回true
+            └─ 所有子View都不消费 → 当前ViewGroup执行自身onTouchEvent()
+```
 
+    - 关键规则：如果在**DOWN事件返回true拦截**，同一事件序列后续MOVE、UP，**不会再次调用onInterceptTouchEvent**！
+
+- View（普通控件，无拦截方法）分发逻辑
+
+```text
+View.dispatchTouchEvent()
+    1. 优先执行 OnTouchListener -> onTouch()
+        ├ onTouch返回true：直接消费，不再执行onTouchEvent
+        └ onTouch返回false：继续调用onTouchEvent()
+    2. onTouchEvent()
+        ├ true：消费事件，传递终止
+        └ false：事件向上抛给父容器尝试处理
+```
+
+    - 执行优先级：`onTouchListener > onTouchEvent > onClickListener`
+    - onClick触发必要条件：收到UP事件，且中途没有被拦截、提前消费。
+
+- 分发原理：递归 + TouchTarget
     - 事件分发的本质原理就是递归，而目前其实现方式是，每接收一个新的事件，都需要进行一次递归才能找到对应消费事件的View，并依次向上返回事件分发的结果。
-
     - 事件序列 的概念，当接收到一个ACTION_DOWN时，意味着一次完整事件序列的开始，通过递归遍历找到View树中真正对事件进行消费的Child，并将其进行保存，这之后接收到ACTION_MOVE和ACTION_UP行为时，则跳过遍历递归的过程，将事件直接分发给Child这个事件的消费者；当接收到ACTION_DOWN时，则重置整个事件序列,根据View的树形结构，设计了一个TouchTarget类，为作为一个成员属性，描述ViewGroup下一级事件分发,应用到了树的 深度优先搜索算法（Depth-First-Search，简称DFS算法），正如代码所描述的，每个ViewGroup都持有一个mFirstTouchTarget, 当接收到一个ACTION_DOWN时，通过递归遍历找到View树中真正对事件进行消费的Child，并保存在mFirstTouchTarget属性中，依此类推组成一个完整的分发链。用到了dispatchTouchEvent和onThouchEvent,再加上事件拦截onInterceptTouchEvent就完整了
 
-    - 事件拦截机制，增加事件分发 过程中的灵活性，Android为ViewGroup层级设计了onInterceptTouchEvent()函数并向外暴露给开发者，以达到让ViewGroup跳过子View的事件分发，提前结束 递流程 ，并自身决定是否消费事件，并将结果反馈给上层级的ViewGroup处理。
+- 事件拦截机制，增加事件分发 过程中的灵活性，Android为ViewGroup层级设计了onInterceptTouchEvent()函数并向外暴露给开发者，以达到让ViewGroup跳过子View的事件分发，提前结束 递流程 ，并自身决定是否消费事件，并将结果反馈给上层级的ViewGroup处理。
 
-    - Action_cancel的触发条件，ChildView原先拥有事件处理权，后面由于某些原因，该处理权需要交回给上层去处理，ChildView便会收到ACTION_CANCEL事件（代码逻辑上是：上层判断之前交给ChildView的事件处理权需要收回来了，便会做事件的拦截处理，拦截时给ChildView发一个ACTION_CANCEL事件）。举个例子：上层 View 是一个 RecyclerView，它收到了一个 ACTION_DOWN 事件，由于这个可能是点击事件，所以它先传递给对应 ItemView，询问 ItemView 是否需要这个事件，然而接下来又传递过来了一个 ACTION_MOVE 事件，且移动的方向和 RecyclerView 的可滑动方向一致，所以 RecyclerView 判断这个事件是滚动事件，于是要收回事件处理权，这时候对应的 ItemView 会收到一个 ACTION_CANCEL ，并且不会再收到后续事件。
+- Action_cancel的触发条件，ChildView原先拥有事件处理权，后面由于某些原因，该处理权需要交回给上层去处理，ChildView便会收到ACTION_CANCEL事件（代码逻辑上是：上层判断之前交给ChildView的事件处理权需要收回来了，便会做事件的拦截处理，拦截时给ChildView发一个ACTION_CANCEL事件）。举个例子：上层 View 是一个 RecyclerView，它收到了一个 ACTION_DOWN 事件，由于这个可能是点击事件，所以它先传递给对应 ItemView，询问 ItemView 是否需要这个事件，然而接下来又传递过来了一个 ACTION_MOVE 事件，且移动的方向和 RecyclerView 的可滑动方向一致，所以 RecyclerView 判断这个事件是滚动事件，于是要收回事件处理权，这时候对应的 ItemView 会收到一个 ACTION_CANCEL ，并且不会再收到后续事件。
+
+### 三大方法返回值含义
+
+1. **boolean onInterceptTouchEvent()（ViewGroup专属）**
+- `true`：拦截事件，停止向下分发
+- `false`：放行，事件继续传递给子View
+
+2. **boolean onTouchEvent()**
+- `true`：消费事件，传递结束
+- `false`：不消费，事件向上回溯父容器
+
+3. **requestDisallowInterceptTouchEvent(boolean)**
+- `true`：子View请求**禁止父ViewGroup拦截**
+- `false`：恢复父容器拦截权限
+- 生效范围：**同一条触摸事件序列（DOWN~UP）**
+- 最佳调用时机：ACTION_DOWN中调用
+
+### 滑动冲突两大解决方案（面试核心）
+
+#### 方案1：外部拦截法【推荐】
+
+逻辑写在父ViewGroup，在`onInterceptTouchEvent`根据滑动方向、区域动态决定是否拦截。
+优点：逻辑收敛在父容器，耦合低，不容易出现CANCEL异常。
+
+```kotlin
+class ConflictParentLayout @JvmOverloads constructor(
+    context: Context, attrs: AttributeSet? = null
+) : ViewGroup(context, attrs) {
+    private var lastX = 0f
+    private var lastY = 0f
+
+    override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
+        val x = ev.x
+        val y = ev.y
+        return when (ev.action) {
+            MotionEvent.ACTION_DOWN -> {
+                lastX = x
+                lastY = y
+                // DOWN禁止拦截，否则子View无法接收点击事件
+                false
+            }
+            MotionEvent.ACTION_MOVE -> {
+                val dx = x - lastX
+                val dy = y - lastY
+                // 示例：纵向滑动父容器拦截，横向交给子View
+                kotlin.math.abs(dy) > kotlin.math.abs(dx)
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> false
+            else -> false
+        }
+    }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean = true
+    override fun layout(l: Int, t: Int, r: Int, b: Int) {}
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {}
+}
+```
+
+#### 方案2：内部拦截法
+
+子View主动调用`requestDisallowInterceptTouchEvent`阻止父容器拦截。
+适合无法修改父容器源码场景。
+
+```kotlin
+childView.setOnTouchListener { view, event ->
+    val parent = view.parent as ViewGroup
+    when (event.action) {
+        MotionEvent.ACTION_DOWN -> {
+            parent.requestDisallowInterceptTouchEvent(true)
+        }
+        MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+            parent.requestDisallowInterceptTouchEvent(false)
+        }
+    }
+    false // 不消费事件，继续走原有onTouchEvent逻辑
+}
+```
+
+### 经典冲突实战场景
+
+- 场景1：ScrollView 嵌套 RecyclerView（竖向冲突）
+    - 现象：滑动RecyclerView时，ScrollView优先滚动。
+    - 解决思路：
+        - 内部拦截：RecyclerView滑动时禁止父ScrollView拦截
+        - 外部拦截：自定义ScrollView，判断触摸区域，RecyclerView区域不拦截纵向滑动
+
+- 场景2：ViewPager(横向) 嵌套横向RecyclerView
+    - 横向滑动冲突。
+    - 方案：RecyclerView检测到左右滑动时，禁止ViewPager拦截。
+
+- 场景3：ViewGroup局部可滑动、区域可点击
+    - 重写onInterceptTouchEvent：DOWN一律放行；MOVE滑动距离超过阈值后再拦截。
+    - 禁忌：不要拦截DOWN事件，否则子View无法响应点击。
+
+### 高频坑点 & 面试追问
+
+1. DOWN事件一旦被父容器拦截，子View收不到任何事件，点击直接失效。
+2. `requestDisallowInterceptTouchEvent` **仅对直接父容器生效，不能跨隔代ViewGroup**。
+3. ACTION_CANCEL触发时机：父容器中途拦截事件，子View收到CANCEL，业务需要重置拖拽、按压状态。
+4. onClick失效常见原因：父提前拦截、onTouch返回true消费事件、UP事件被截断。
+5. 事件序列断裂：DOWN无人消费，后续MOVE/UP全部丢弃。
+
+### 面试背诵标准答案
+
+> Android触摸事件从Activity开始分发，传递顺序：Activity → ViewGroup → View。
+> ViewGroup通过`onInterceptTouchEvent`决定是否拦截；不拦截则继续向下分发子View。View没有拦截方法，依靠`onTouchEvent`消费事件。整体遵循**先下发，消费后向上回溯**的规则。
+>
+> 滑动冲突主流两种方案：
+> 外部拦截法：重写父ViewGroup `onInterceptTouchEvent`，根据滑动方向动态拦截，优先推荐；
+> 内部拦截法：子View调用`requestDisallowInterceptTouchEvent`禁止父拦截。
+>
+> 外部拦截优势：代码集中在父容器，耦合更低，减少CANCEL事件带来的状态异常。
+
+### 延伸面试题（含答案）
+
+#### 1. 外部拦截与内部拦截各自优缺点？
+
+- 外部拦截法
+    - 优点：
+        - 拦截逻辑集中在父容器一处，代码清晰，**不侵入子View**，子View无需任何改动
+        - 父容器主导事件分发符合ViewGroup设计，拦截时机可在MOVE中根据滑动方向、距离动态判断
+        - 子View完全无感知，仍按普通View处理事件，问题易定位
+    - 缺点：
+        - 必须自定义父ViewGroup；父容器是系统/第三方控件（如ScrollView）时需继承重写，改动面在父容器
+        - 拦截规则若需参考子View内部状态（如子View是否还能滑动），父容器会与子View产生耦合
+
+- 内部拦截法
+    - 优点：
+        - 拦截决策点在子View，**子View最了解自己是否需要事件**（如RecyclerView知道自己能否滑动），判断更准确
+        - 适合父容器不便改源码的场景（父容器只需保证DOWN不拦截即可，ViewGroup默认实现天然支持FLAG_DISALLOW_INTERCEPT）
+        - 事件先到子View，可以先消费、后"还"给父容器，滑动中途可动态让权
+    - 缺点：
+        - 需**父容器 + 子View双方配合**：父容器DOWN不能拦截、子View必须在DOWN中调用`requestDisallowInterceptTouchEvent(true)`，缺一不可，容易遗漏
+        - `requestDisallowInterceptTouchEvent`仅对直接父容器生效，多层嵌套时需逐层请求
+        - 侵入子View的事件处理逻辑，子View改动多
+
+#### 2. 多层嵌套ViewGroup滑动冲突怎么处理？
+
+- 核心原则：**方向分流 + 逐层解决**
+    - 先按滑动方向做正交分流：横向容器只处理横向、纵向容器只处理纵向，让每层父容器只关心与"直接子层"的冲突
+- 逐层外部拦截：从最外层ViewGroup开始，每层用外部拦截法解决本层冲突，拦截规则只涉及本层与子层
+- 逐层`requestDisallowInterceptTouchEvent`：子View需要滑动时，循环向上调用`parent.requestDisallowInterceptTouchEvent(true)`直到根（注意它只对直接父生效，必须逐层传递）
+- 布局设计上规避：遵循"横向容器套纵向容器"的规范结构，**避免同向可滑动容器互相嵌套**（如竖向ScrollView里套竖向RecyclerView）
+- 使用NestedScrolling嵌套滚动机制：RecyclerView等自带NestedScrollingChild实现，让子View通过`dispatchNestedPreScroll`把滑动量交给父容器决策，用协议代替手动拦截，减少CANCEL
+- 兜底：实在无法解耦的深层冲突，由根ViewGroup统一收口事件再手动分发
+
+#### 3. CANCEL事件业务上有哪些注意事项？
+
+- 语义：CANCEL表示事件处理权被父容器**中途收回**，子View不会再收到后续MOVE/UP，属于"被中止"而非"正常结束"
+- **必须重置按压态**：pressed状态、item高亮背景、水波纹等，否则界面停留在按压视觉上
+- 拖动/缩放状态要复位：拖拽中的位置偏移、缩放倍率等要做还原或定格处理，不能停在半路
+- **不要假设UP一定会来**：收尾逻辑（状态机终止、动画结束回调、手势判定）必须同时覆盖CANCEL路径，不能只写在UP分支
+- 取消DOWN时启动的延时任务：如长按计时器，否则CANCEL后长按仍会误触发
+- 埋点/统计要提前定义：CANCEL是否算一次完整手势，避免与UP重复上报或漏报
+
+#### 4. 为什么DOWN事件尽量不要拦截？
+
+- DOWN是事件序列的起点：`ViewGroup.dispatchTouchEvent`在ACTION_DOWN分支会重置FLAG_DISALLOW_INTERCEPT和mFirstTouchTarget；父容器一旦在DOWN拦截，**子View连第一手事件都收不到**，后续整条序列与子View无关，点击、按压、长按全部失效
+- DOWN阶段无法判断意图：DOWN只有"按下"动作，没有方向与位移信息，此时拦截是盲目的——用户可能只是想点击子View的按钮
+- 破坏内部拦截法的前提：子View只有在DOWN中调用`requestDisallowInterceptTouchEvent(true)`才有效，父容器DOWN拦截则此机制直接失效
+- 正确做法：DOWN一律放行，MOVE中根据滑动方向与距离（超过`ViewConfiguration.getScaledTouchSlop()`）再决定是否拦截；拦截时子View会收到CANCEL，状态可控
+- 例外：父容器区域完全不需要子View响应任何事件（如纯拖拽面板）时，可拦截DOWN以简化分发
 
 
 
