@@ -49,6 +49,30 @@ Linux内核并不指的是Linux操作系统，内核只包括最基本的内存�
 - **它做的事**：四大组件调度（Activity 启动、Service 管理、广播分发）、窗口管理与渲染调度、输入事件分发、进程管理（AMS 通过 zygote socket 请求孵化 App 进程）、电量、通知、权限等等。App 侧的 ActivityThread 持有 system_server 各服务的 binder 代理，所有跨进程调用最终都汇聚到这里。
 - 一句话总结：**init 管启动，zygote 管孵化，system_server 管调度**，三者分工明确，缺一不可。
 
+5. system_server 和 service_manager 的区别是什么？（高频易混淆）
+
+答：两者名字里都带 "service"，但一个是"服务的登记处"，一个是"服务的实现者"，完全不是一回事：
+
+- **service_manager（servicemanager）**
+    - 一个轻量的 **native C++ 进程**，由 init 在启动早期直接拉起，早于 zygote 和 system_server 就位；
+    - 职责单一：维护一张 **服务注册表**（服务名 → binder 引用），对外只有 addService / getService 等查询类接口，**本身不实现任何系统服务**；
+    - 它是 binder 世界的"**电话簿/DNS**"：通过 `BINDER_SET_CONTEXT_MGR` 把自己注册为上下文管理者，binder handle 固定为 0，所以任何进程不用先查别人就能直接找到它；
+    - 只参与"**按名字查服务**"这一跳，App 拿到服务引用后的业务通信流量完全不经过它。
+
+- **system_server**
+    - zygote fork 出的**第一个 Java 进程**，是 AMS、WMS、PMS、InputManagerService 等几十上百个系统服务的**真正实现与运行载体**（见问题 4）；
+    - 启动时（SystemServer.main → startBootstrapServices 等阶段）通过 Java 层 `ServiceManager.addService()` 把这些服务**注册进 service_manager 的注册表**；
+    - 它是多线程 binder 服务端，App 的跨进程调用最终都打到 system_server 的 binder 线程池上执行。
+
+- **一次完整调用链路**：App 调 `context.getSystemService()` → 客户端拿服务名去问 **service_manager**（handle 0）→ 拿到 AMS 的 binder 引用 → 之后直接与 **system_server** 里的 AMS 通信。service_manager 只出现在"查名字"的第一跳。
+
+- **一句话区分**：service_manager 是"**电话簿**"（登记与查号），system_server 是"**电话那头办事的人**"（服务实现）。
+
+- **面试易错点**
+    - 三个概念别混：`service_manager` 是**进程**；`ServiceManager`（Java 类）只是客户端调 addService/getService 的**工具类**；"service manager" 是**概念**（binder 的名字解析机制）。
+    - 启动顺序：init 先拉起 servicemanager，再拉起 zygote，zygote 再 fork 出 system_server——system_server 注册服务依赖 servicemanager 先就位；而 AMS 请求 zygote fork 用的是 socket 而非 binder（见问题 3）。
+    - 延伸：hwservicemanager（Android 8.0 引入，管 HIDL 硬件服务）和 vndservicemanager（Android 11 引入，管 vendor 服务）与 framework 域的 servicemanager 并存，各管各的 binder 域，这是 binder 域隔离带来的设计。
+
 
 
 开机显示桌面、从桌面点击 App 图标到 Activity显示在屏幕上
