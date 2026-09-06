@@ -1,6 +1,6 @@
 # Handler 机制
 
-思维导图（Typora / GitHub 可直接渲染）：
+
 
 ```mermaid
 mindmap
