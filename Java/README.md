@@ -6,7 +6,7 @@
 
 [集合](./java_base2.md)，[ConcurrentHashMap](./ConcurrentHashMap.md)，[Hash](./Hash.md)
 
-[NIO与IO](./NIO与IO.md)，[同步异步阻塞与非阻塞](./同步异步阻塞与非阻塞.md)
+[NIO与IO（含同步异步、阻塞与非阻塞）](./NIO与IO.md)
 
 [字符](./java_base4.md)
 
