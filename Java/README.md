@@ -12,7 +12,9 @@
 
 [注解](https://github.com/chaoyueLin/annotationDemo)
 
-[多线程](./java_base3.md),[死锁](./死锁.md),[多线程协作](https://github.com/chaoyueLin/threadDemo)，[Java线程池实现原理及其在美团业务中的实践](https://tech.meituan.com/2020/04/02/java-pooling-pratice-in-meituan.html)
+[多线程](./java_base3.md)，[多线程协作](https://github.com/chaoyueLin/threadDemo)，[死锁](./死锁.md)
+
+[并发编程（三大特性、锁与 AQS、线程池、并发集合、并发工具）](./并发编程.md)，[Java线程池实现原理及其在美团业务中的实践](https://tech.meituan.com/2020/04/02/java-pooling-pratice-in-meituan.html)
 
 [静态代理和动态代理](./代理.md)
 
