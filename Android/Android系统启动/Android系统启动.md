@@ -1,79 +1,139 @@
-# Android系统启动
+# Android 系统启动
+
+```mermaid
+mindmap
+  root((Android 系统启动))
+    启动链路
+      Linux 内核
+      swapper 进程 pid 0
+      init 进程 pid 1
+      zygote
+      system_server
+      Launcher 桌面
+    init 进程
+      用户空间第一个进程
+      epoll 无限循环
+      守护系统服务
+      属性服务与回收孤儿进程
+    zygote
+      预加载类与资源
+      写时复制省内存
+      单线程 epoll 监听 socket
+      fork 出 App 与 system_server
+    system_server
+      系统服务大本营
+      AMS / WMS / PMS
+      通过 socket 请求 zygote 孵化进程
+    service_manager
+      native 进程 早于 zygote
+      binder 服务注册表
+      handle 固定为 0
+      只参与查名字一跳
+    高频问题
+      init 为什么不能退出
+      为什么用 socket 而不是 binder
+      service_manager 与 system_server 的区别
+```
+
+---
+
+## 一、启动总览
+
+Android 设备从按下开机键到桌面显示画面，大致经过：**Linux 内核 → init → zygote → system_server → Launcher/桌面**。
 
 ![](./1.jpg)
 
-Android设备从按下开机键到桌面显示画面
+- Linux 内核并不指 Linux 操作系统，内核只包括最基本的内存模型、进程调度、权限安全等等。操作系统是一个更广的概念，不光有内核，还有自己的设备驱动、应用程序框架以及一些应用程序软件等等。所以 Android、Ubuntu 等都是基于 Linux 内核的不同的操作系统。
+- 启动了 Linux 内核，就是启动了内核中内存模型、进程调度、安全机制、加载驱动等等，而内核中的功能都需要上册的虚拟机进行调用执行。
+- 内核启动时创建系统中的第一个进程：**swapper 进程（pid=0）**，又称 **idle 进程**，是内核由无到有开创的第一个进程，用于初始化进程管理、内存管理；并且会加载屏幕硬件、相机硬件等，这一步就会涉及到 HAL 层。
+- **init 进程**是 Android 系统中**用户空间的第一个进程**，是所有用户进程的鼻祖，启动入口在 `system/core/init/init.cpp` 文件中。
 
-Linux内核并不指的是Linux操作系统，内核只包括最基本的内存模型，进程调度，权限安全等等。操作系统值得是一个更广的概念，不光有内核，还有自己的设备驱动，应用程序框架以及一些应用程序软件等等。所以Android、Ubuntu等都是基于Linux内核的不同的操作系统。所以启动了linux内核，就是启动了内核中内存模型，进程调度，安全机制，加载驱动等等，而linux内核中的功能都需要上册的虚拟机进行调用执行。
+---
 
-内核中就启动了系统中的第一个进程：swapper进程(pid=0)，该进程又称为idle进程, 系统初始化过程Kernel由无到有开创的第一个进程, 用于初始化进程管理、内存管理。并且会加载屏幕硬件，相机硬件等，这一步就会涉及到待会说到的HAL层了init进程是Android系统中用户空间的第一个进程，是所有用户进程的鼻祖。启动入口在system/core/init/init.cpp文件中
+## 二、init 进程：启动其他服务后可以退出吗？
 
+**不能退出**，原因有三：
 
-问题：
-1.由于内存占用，init进程在启动其他服务后可以退出吗？为什么？
+1. **内核不允许**：init 是用户空间的第一个进程（pid=1），是所有用户进程的鼻祖。在 Linux 中，pid=1 的进程一旦退出，内核会直接 panic（`Attempted to kill init!`），系统只能重启。init 是内核"钦定"的常驻进程，不存在"退出"这个选项。
+2. **职责不允许**：init 启动完服务后并没有闲着，而是进入一个 epoll 无限循环，持续处理三类事情：
+   - 解析 init.rc 并监控 **zygote、servicemanager** 等关键服务的状态，服务挂掉时负责拉起（它是所有系统服务的守护者）；
+   - 提供**属性服务**（property service）：Android 属性系统由 init 实现，其他进程的 setprop/getprop 都是通过 socket 与 init 通信，init 退出整个属性系统就瘫痪了；
+   - **回收孤儿进程**：当某个进程的父进程先退出时，孤儿进程会被过继给 init，由 init 接收 SIGCHLD 并做善后处理，否则会产生大量僵尸进程。
+3. **没必要**：init 本身是纯 native 的单线程进程，内存占用极小。为了省这点内存去承担系统崩溃的风险，得不偿失。
 
-答：**不能退出**，原因有三：
+---
 
-- **内核不允许**：init 是用户空间的第一个进程（pid=1），是所有用户进程的鼻祖。在 Linux 中，pid=1 的进程一旦退出，内核会直接 panic（`Attempted to kill init!`），系统只能重启。init 是内核"钦定"的常驻进程，不存在"退出"这个选项。
-- **职责不允许**：init 启动完服务后并没有闲着，而是进入一个 epoll 无限循环，持续处理三类事情：
-    - 解析 init.rc 并监控 zygote、servicemanager 等关键服务的状态，服务挂掉时负责拉起（它是所有系统服务的守护者）；
-    - 提供**属性服务**（property service）：Android 属性系统由 init 实现，其他进程的 setprop/getprop 都是通过 socket 与 init 通信，init 退出整个属性系统就瘫痪了；
-    - 回收孤儿进程：当某个进程的父进程先退出时，孤儿进程会被过继给 init，由 init 接收 SIGCHLD 并做善后处理，否则会产生大量僵尸进程。
-- **没必要**：init 本身是纯 native 的单线程进程，内存占用极小。为了省这点内存去承担系统崩溃的风险，得不偿失。
+## 三、App 进程启动，为什么是 zygote fork 而不是 init fork？
 
-2.app的进程启动，为什么是zygote fork,而不是从init进程fork
-
-答：核心是 **预加载 + 写时复制**，让 App 进程"出生即自带 Java 运行时"：
+核心是 **预加载 + 写时复制**，让 App 进程"出生即自带 Java 运行时"：
 
 - **init 的 fork 是"白板"**：init 是纯 native 进程，没有加载 ART 虚拟机和任何 Java 类库。如果直接从 init fork，每个 App 进程都要从零开始创建虚拟机、加载框架类（Binder、四大组件基类、Resources 等成千上万个类），耗时数百毫秒甚至秒级，冷启动会慢到不可接受。
 - **zygote 提前把"公共课"上完了**：zygote 启动时（ZygoteInit.main）就创建了 ART 虚拟机，并预加载常用类（preloadClasses）、常用资源（preloadResources）、主题、字体等。fork 出的子进程直接继承这份"已经加热好"的运行时，把 App 进程的创建成本从秒级压到几十毫秒。
 - **写时复制（COW）省内存**：fork 出的子进程与 zygote 共享预加载的内存页（只读共享），只有真正要写入时内核才复制对应页面。所以 100 个 App 进程可以共用同一份虚拟机代码和框架类内存，而不是每个进程各占一份。
 - **职责分层**：init 的本职是"启动并守护系统服务"，孵化应用进程是 zygote 的专职。zygote 提供了专门的 socket 协议供 AMS 请求 fork，并能在 fork 后指定子进程的入口（ActivityThread.main），这套机制 init 不具备。
 
-3.为什么通知zygote启动的时候是采用的socket而不是binder呢
+---
 
-答：主要有三个原因：
+## 四、为什么通知 zygote 启动用的是 socket 而不是 binder？
 
-- **时序问题（最根本）**：binder 通信依赖 ServiceManager 做服务的注册与查询，但 zygote 在系统启动早期就被 init 拉起，而 zygote 的"客户"——system_server 此时还没被 fork 出来（它本身就是 zygote 的第一个孩子）。如果走 binder，zygote 想注册服务时"服务总线"还不存在；socket 不依赖任何第三方，双方约定好协议（/dev/socket/zygote + ZygoteArguments）就能直接通信，天然适合启动早期。
-- **fork 多线程会死锁**：binder 是线程池模型，进程里会有多个 binder 线程。而 fork 只复制发起调用的那一个线程，其余线程（可能正持有锁）直接消失，子进程一旦用到这些锁就会永久死锁。所以 zygote 必须保持**单线程**，用简单的 epoll 循环监听 socket 最安全可控——这也是 zygote 要专门 fork 出 system_server、把"开线程池干重活"的职责交出去的原因。
-- **安全与简单**：socket 文件可以设置访问权限（/dev/socket/zygote 只有 system_server 等可信方才能连接），而 binder 服务一旦注册到 ServiceManager 就是全系统可见，控制起来更麻烦。socket 协议简单、性能足够，没有引入 binder 的必要。
+主要有三个原因：
 
-4. systemServer进程存在的价值是什么？
+1. **时序问题（最根本）**：binder 通信依赖 ServiceManager 做服务的注册与查询，但 zygote 在系统启动早期就被 init 拉起，而 zygote 的"客户"——system_server 此时还没被 fork 出来（它本身就是 zygote 的第一个孩子）。如果走 binder，zygote 想注册服务时"服务总线"还不存在；socket 不依赖任何第三方，双方约定好协议（/dev/socket/zygote + ZygoteArguments）就能直接通信，天然适合启动早期。
+2. **fork 多线程会死锁**：binder 是线程池模型，进程里会有多个 binder 线程。而 fork 只复制发起调用的那一个线程，其余线程（可能正持有锁）直接消失，子进程一旦用到这些锁就会永久死锁。所以 zygote 必须保持**单线程**，用简单的 epoll 循环监听 socket 最安全可控——这也是 zygote 要专门 fork 出 system_server、把"开线程池干重活"的职责交出去的原因。
+3. **安全与简单**：socket 文件可以设置访问权限（/dev/socket/zygote 只有 system_server 等可信方才能连接），而 binder 服务一旦注册到 ServiceManager 就是全系统可见，控制起来更麻烦。socket 协议简单、性能足够，没有引入 binder 的必要。
 
-答：system_server 是 **Android 系统服务的唯一运行载体**，几乎所有核心系统服务都跑在这个进程里：
+---
+
+## 五、system_server 进程存在的价值是什么？
+
+system_server 是 **Android 系统服务的唯一运行载体**，几乎所有核心系统服务都跑在这个进程里：
 
 - **系统服务的"大本营"**：AMS、ATMS、WMS、PMS、InputManagerService、PowerManagerService、NotificationManagerService……几十上百个系统服务都以 Java 代码运行在 system_server 中，通过 binder 对外提供服务。
 - **为什么不能塞进 init 或 zygote**：
-    - init 是 native 进程，没有 Java 运行时，而系统服务基本都是 Java 写的；
-    - zygote 为了 fork 安全必须保持单线程（见问题 3），而系统服务需要多线程 binder 处理海量并发请求，两者天然冲突。所以 zygote 把自己 fork 出的"第一个孩子" system_server 作为替身，让它去开线程池干重活，自己继续单线程等着 fork App。
+  - init 是 native 进程，没有 Java 运行时，而系统服务基本都是 Java 写的；
+  - zygote 为了 fork 安全必须保持单线程（见第四节），而系统服务需要多线程 binder 处理海量并发请求，两者天然冲突。所以 zygote 把自己 fork 出的"第一个孩子" system_server 作为替身，让它去开线程池干重活，自己继续单线程等着 fork App。
 - **它做的事**：四大组件调度（Activity 启动、Service 管理、广播分发）、窗口管理与渲染调度、输入事件分发、进程管理（AMS 通过 zygote socket 请求孵化 App 进程）、电量、通知、权限等等。App 侧的 ActivityThread 持有 system_server 各服务的 binder 代理，所有跨进程调用最终都汇聚到这里。
 - 一句话总结：**init 管启动，zygote 管孵化，system_server 管调度**，三者分工明确，缺一不可。
 
-5. system_server 和 service_manager 的区别是什么？（高频易混淆）
+---
 
-答：两者名字里都带 "service"，但一个是"服务的登记处"，一个是"服务的实现者"，完全不是一回事：
+## 六、system_server 和 service_manager 的区别（高频易混淆）
 
-- **service_manager（servicemanager）**
-    - 一个轻量的 **native C++ 进程**，由 init 在启动早期直接拉起，早于 zygote 和 system_server 就位；
-    - 职责单一：维护一张 **服务注册表**（服务名 → binder 引用），对外只有 addService / getService 等查询类接口，**本身不实现任何系统服务**；
-    - 它是 binder 世界的"**电话簿/DNS**"：通过 `BINDER_SET_CONTEXT_MGR` 把自己注册为上下文管理者，binder handle 固定为 0，所以任何进程不用先查别人就能直接找到它；
-    - 只参与"**按名字查服务**"这一跳，App 拿到服务引用后的业务通信流量完全不经过它。
+两者名字里都带 "service"，但一个是"服务的登记处"，一个是"服务的实现者"，完全不是一回事：
 
-- **system_server**
-    - zygote fork 出的**第一个 Java 进程**，是 AMS、WMS、PMS、InputManagerService 等几十上百个系统服务的**真正实现与运行载体**（见问题 4）；
-    - 启动时（SystemServer.main → startBootstrapServices 等阶段）通过 Java 层 `ServiceManager.addService()` 把这些服务**注册进 service_manager 的注册表**；
-    - 它是多线程 binder 服务端，App 的跨进程调用最终都打到 system_server 的 binder 线程池上执行。
+**service_manager（servicemanager）**
 
-- **一次完整调用链路**：App 调 `context.getSystemService()` → 客户端拿服务名去问 **service_manager**（handle 0）→ 拿到 AMS 的 binder 引用 → 之后直接与 **system_server** 里的 AMS 通信。service_manager 只出现在"查名字"的第一跳。
+- 一个轻量的 **native C++ 进程**，由 init 在启动早期直接拉起，早于 zygote 和 system_server 就位；
+- 职责单一：维护一张**服务注册表**（服务名 → binder 引用），对外只有 addService / getService 等查询类接口，**本身不实现任何系统服务**；
+- 它是 binder 世界的"**电话簿/DNS**"：通过 `BINDER_SET_CONTEXT_MGR` 把自己注册为上下文管理者，binder handle 固定为 0，所以任何进程不用先查别人就能直接找到它；
+- 只参与"**按名字查服务**"这一跳，App 拿到服务引用后的业务通信流量完全不经过它。
 
-- **一句话区分**：service_manager 是"**电话簿**"（登记与查号），system_server 是"**电话那头办事的人**"（服务实现）。
+**system_server**
 
-- **面试易错点**
-    - 三个概念别混：`service_manager` 是**进程**；`ServiceManager`（Java 类）只是客户端调 addService/getService 的**工具类**；"service manager" 是**概念**（binder 的名字解析机制）。
-    - 启动顺序：init 先拉起 servicemanager，再拉起 zygote，zygote 再 fork 出 system_server——system_server 注册服务依赖 servicemanager 先就位；而 AMS 请求 zygote fork 用的是 socket 而非 binder（见问题 3）。
-    - 延伸：hwservicemanager（Android 8.0 引入，管 HIDL 硬件服务）和 vndservicemanager（Android 11 引入，管 vendor 服务）与 framework 域的 servicemanager 并存，各管各的 binder 域，这是 binder 域隔离带来的设计。
+- zygote fork 出的**第一个 Java 进程**，是 AMS、WMS、PMS、InputManagerService 等几十上百个系统服务的**真正实现与运行载体**（见第五节）；
+- 启动时（SystemServer.main → startBootstrapServices 等阶段）通过 Java 层 `ServiceManager.addService()` 把这些服务**注册进 service_manager 的注册表**；
+- 它是多线程 binder 服务端，App 的跨进程调用最终都打到 system_server 的 binder 线程池上执行。
 
+**一次完整调用链路**：App 调 `context.getSystemService()` → 客户端拿服务名去问 **service_manager**（handle 0）→ 拿到 AMS 的 binder 引用 → 之后直接与 **system_server** 里的 AMS 通信。service_manager 只出现在"查名字"的第一跳。
 
+**一句话区分**：service_manager 是"**电话簿**"（登记与查号），system_server 是"**电话那头办事的人**"（服务实现）。
 
-开机显示桌面、从桌面点击 App 图标到 Activity显示在屏幕上
+**面试易错点**
+
+- 三个概念别混：`service_manager` 是**进程**；`ServiceManager`（Java 类）只是客户端调 addService/getService 的**工具类**；"service manager" 是**概念**（binder 的名字解析机制）。
+- 启动顺序：init 先拉起 servicemanager，再拉起 zygote，zygote 再 fork 出 system_server——system_server 注册服务依赖 servicemanager 先就位；而 AMS 请求 zygote fork 用的是 socket 而非 binder（见第四节）。
+- 延伸：hwservicemanager（Android 8.0 引入，管 HIDL 硬件服务）和 vndservicemanager（Android 11 引入，管 vendor 服务）与 framework 域的 servicemanager 并存，各管各的 binder 域，这是 binder 域隔离带来的设计。
+
+---
+
+## 七、从开机到桌面、再到 Activity 显示
+
+开机显示桌面、从桌面点击 App 图标到 Activity 显示在屏幕上：
+
 ![](./2.jpg)
+
+---
+
+## 八、30 秒口述版
+
+启动链路是 内核 → init（pid=1，用户空间第一个进程，epoll 循环守护服务、提供属性服务、回收孤儿进程，因此不能退出）→ zygote（预加载类与资源，fork 子进程靠写时复制共享内存，必须保持单线程所以用 socket 而非 binder 接收孵化请求）→ system_server（AMS/WMS/PMS 等系统服务的大本营）→ 桌面。service_manager 是 binder 的"电话簿"（handle 0，只负责按名字查服务），system_server 是"电话那头办事的人"（服务的真正实现）。一句话：init 管启动，zygote 管孵化，system_server 管调度。
