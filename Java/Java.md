@@ -114,7 +114,7 @@ mindmap
 
 ## 二、线程与并发
 
-> 细节见 [java_base3.md](./java_base3.md)（线程状态与任务体系）、[并发编程.md](./并发编程.md)（锁与线程池）、[Java并发编程艺术.md](./Java并发编程艺术.md)、[死锁.md](./死锁.md)。
+> 细节见 [线程、线程池、死锁](./线程、线程池、死锁.md)（线程状态、任务体系、死锁与线程池）、[并发编程.md](./并发编程.md)（三大特性与锁）、[Java并发编程艺术.md](./Java并发编程艺术.md)。
 
 ### 1. 线程基础
 
@@ -125,7 +125,7 @@ mindmap
   - `Thread.currentThread()`；
   - `Thread.yield()`：使当前线程放弃对处理器的占用，相当于降低线程优先级——对调度器说"如果其他线程要处理器资源就给它们，否则我继续用"；
   - `Thread.sleep(ms)`。
-- **状态转换**（详见 java_base3）：new → runnable（又分预备 READY 和运行 RUNNING）→ blocked → wait（WAITING，`Object.wait()` / `LockSupport.park()` / `Thread.join()`）→ dead。
+- **状态转换**（详见[《线程、线程池、死锁》](./线程、线程池、死锁.md)）：new → runnable（又分预备 READY 和运行 RUNNING）→ blocked → wait（WAITING，`Object.wait()` / `LockSupport.park()` / `Thread.join()`）→ dead。
   - 处于预备状态的线程可被调度器调度，调度后转为运行状态，也叫活跃线程；运行状态被 `yield()` 后可能回到预备状态。
   - 进入 blocked：发起阻塞式 I/O 操作、申请其他线程持有的锁、进入 synchronized 方法或代码块失败。
   - 从等待状态转变为可运行状态叫**唤醒**：`Object.notify()` / `notifyAll()` / `LockSupport.unpark()`。
@@ -176,7 +176,7 @@ mindmap
 - **线程安全类**：StringBuffer、并发集合类 ConcurrentHashMap。
 - **原子类**：JUC 的 atomic 包通过 Unsafe 中的 CAS 指令从硬件层面实现线程安全，如 AtomicInteger、AtomicBoolean、AtomicReference、AtomicReferenceFieldUpdater。
   - AtomicReference 用法比 AtomicReferenceFieldUpdater 简单，但内部一样有一个 volatile 变量；使用 AtomicReference 会多创建一个对象，当成千上万地创建时开销很大——这就是 BufferedInputStream、Kotlin 协程、Kotlin 的 lazy 选择 `AtomicReferenceFieldUpdater` 的原因。
-- **线程池**：Executors / ThreadPoolExecutor（七大参数：corePoolSize、maximumPoolSize、keepAliveTime、TimeUnit、BlockingQueue、ThreadFactory、RejectedExecutionHandler）。JDK 8 增加 `Executors.newWorkStealingPool`。详见 [并发编程.md](./并发编程.md)。
+- **线程池**：Executors / ThreadPoolExecutor（七大参数：corePoolSize、maximumPoolSize、keepAliveTime、TimeUnit、BlockingQueue、ThreadFactory、RejectedExecutionHandler）。JDK 8 增加 `Executors.newWorkStealingPool`。详见[《线程、线程池、死锁》](./线程、线程池、死锁.md)。
 
 ### 4. 锁
 
