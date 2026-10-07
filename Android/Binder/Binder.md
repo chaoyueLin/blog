@@ -23,6 +23,12 @@ mindmap
     通信模型
       Client / Server / ServiceManager / 驱动
       handle 0 固定指向 ServiceManager
+    Binder 线程池
+      进程启动时 startThreadPool
+      默认上限 15 个 按需扩容
+      谁空闲谁处理 并发执行
+      oneway 在同一对象上串行
+      跑在哪个线程与池耗尽
     对象跨进程传递
       flat_binder_object
       BINDER_TYPE_BINDER 翻译成 HANDLE
@@ -115,7 +121,7 @@ Client 端与 Service 端的完整交互过程（对应下图）：
 
 **Service 端：**
 
-6. Service 端首先会开启一个 **Binder 线程**来处理进程间通信请求，也就是通过 `new Thread` 然后把该线程 `joinThreadPool` 注册到 Binder 驱动；注册是通过 **BC_ENTER_LOOPER** 命令协议来做的；
+6. Service 端首先会开启一个 **Binder 线程**来处理进程间通信请求，也就是通过 `new Thread` 然后把该线程 `joinThreadPool` 注册到 Binder 驱动；注册是通过 **BC_ENTER_LOOPER** 命令协议来做的（这组线程的来龙去脉见第四节）；
 7. 接下来就是在 do-while 死循环中调用 `getAndExecuteCommand`：它里面做的就是不断从驱动读取请求（`talkWithDriver`），然后再处理请求（`executeCommand`）；
 8. `executeCommand` 中会根据 **BR_TRANSACTION** 来调用 `BBinder` Binder 实体对象的 `onTransact` 函数来进行处理，然后再发送一个 **BC_REPLY** 把响应结构返回给 Binder 驱动；
 9. Binder 驱动在接收到 BC_REPLY 之后，会向 Service 发送一个 BR_TRANSACTION_COMPLETE 协议表示已经收到，同时也会向 Client 端发送一个 BR_REPLY 把响应回写给 Client 端。
@@ -159,7 +165,7 @@ Client 端与 Service 端的完整交互过程（对应下图）：
 
 Client 端表示应用程序进程，Service 端表示系统服务——它可能运行在 SystemService 进程（比如 AMS、PMS 等），也可能运行在一个单独的进程中（比如 SurfaceFlinger）。ServiceManager 是 Binder 进程间通信方式的**上下文管理者**，它提供 Service 端的服务注册和 Client 端的服务获取功能。
 
-它们之间不能直接通信，需要借助 Binder 驱动层进行交互。这就需要它们首先通过 `binder_open` 打开 binder 驱动，然后根据返回的 fd 进行内存映射、分配缓冲区，最后启动 binder 线程——启动 binder 线程一方面是把这些线程注册到 binder 驱动，另一方面是这个线程要进入 `binder_loop` 循环，不断地去跟 binder 驱动交互。
+它们之间不能直接通信，需要借助 Binder 驱动层进行交互。这就需要它们首先通过 `binder_open` 打开 binder 驱动，然后根据返回的 fd 进行内存映射、分配缓冲区，最后启动 binder 线程——启动 binder 线程一方面是把这些线程注册到 binder 驱动，另一方面是这个线程要进入 `binder_loop` 循环，不断地去跟 binder 驱动交互（线程池的启动时机、数量与调度见第四节）。
 
 ### 2. ServiceManager
 
@@ -184,7 +190,75 @@ Client 端表示应用程序进程，Service 端表示系统服务——它可�
 
 ---
 
-## 四、Binder 对象跨进程传递的原理
+## 四、Binder 线程池
+
+### 1. 为什么需要线程池
+
+- Binder 调用是"**有线程在 `joinThreadPool` 循环里等着，请求才会被处理**"的模型：客户端发起同步调用后阻塞等待回复，服务端必须有一个已经注册到驱动、正在循环里的线程去接收并执行这个请求，否则请求会一直挂在驱动的队列里；
+- 一个进程往往同时是多个服务的 Server、又被多个 Client 调用，因此需要**一组**这样的线程——这就是 Binder 线程池；
+- 关键前提：**线程池不会从 Zygote 继承**。fork 只复制内存映像，不复制线程；每个应用进程都要在启动时自己把 Binder 线程注册进驱动。
+
+### 2. 启动时机
+
+```
+Zygote fork 出应用进程
+  → RuntimeInit.zygoteInit
+      → nativeZygoteInit
+          → AppRuntime::onZygoteInit()（app_main.cpp）
+              → ProcessState::self()->startThreadPool()      ← 线程池在这里启动
+  → ActivityThread.main()（Java 层入口，建立主线程 Looper）
+```
+
+- **Binder 线程池在 `ActivityThread.main` 之前就已经启动**，所以应用进程一诞生就具备被系统 Binder 回调的能力；
+- `ProcessState` 是进程内的单例，构造时完成三件事：`binder_open` 打开 `/dev/binder`、`binder_mmap` 做内存映射、通过 **`BINDER_SET_MAX_THREADS`** 把线程数上限告诉驱动；
+- `startThreadPool()` 用 `mThreadPoolStarted` 保证只启动一次，随后 `spawnPooledThread(true)` 创建**第一个** Binder 线程；
+- 线程真正的工作内容是 `IPCThreadState::joinThreadPool()`：先用 **BC_ENTER_LOOPER** 把自己注册进驱动，然后进入 `talkWithDriver → executeCommand` 循环（协议细节见第一节）。
+
+### 3. 按需扩容与数量上限
+
+| 项 | 值 |
+| --- | --- |
+| 初始线程数 | 1（`startThreadPool` 只创建第一个） |
+| 扩容触发 | 待处理请求多于空闲线程时，驱动发 **BR_SPAWN_LOOPER**，收到命令的线程调用 `spawnPooledThread(false)` 再造一个 |
+| 默认上限 | `DEFAULT_MAX_BINDER_THREADS = 15`（不少资料按"主线程 + 15"说成 16） |
+| 上限下发 | `ioctl(BINDER_SET_MAX_THREADS)` |
+| 调整方式 | 隐藏 API `ProcessState.setThreadPoolMaxThreadCount()` |
+
+- **线程是懒创建的**：不是一上来就 15 个，而是随并发请求量增长；
+- 线程越多，内存与调度开销越大，而且容易掩盖"跨进程调用链设计不当"的问题——所以不要盲目调大。
+
+### 4. 我的代码到底跑在哪个线程
+
+这是实际开发中最容易踩的部分：
+
+| 场景 | 执行线程 |
+| --- | --- |
+| AIDL 的 `Stub.onTransact` | 服务端的 **Binder 线程** |
+| ContentProvider 的 query/insert/update/delete（跨进程调用） | 服务端的 **Binder 线程**（同进程调用时是调用者线程，见 [ContentProvider](../ContentProvider/ContentProvider.md)） |
+| 系统回调 `ApplicationThread.scheduleLaunchActivity`、`handleReceiver` 等 | App 进程的 **Binder 线程**，随后经 `ActivityThread.H` **post 到主线程** |
+| 我们熟悉的 `onCreate`/`onReceive`/`onServiceConnected` | **主线程**（因为上一步做了线程切换） |
+| 客户端发起同步 transact 的那个线程 | 就是调用者自己的线程——它在 `waitForResponse` 里**阻塞等待**，直到回复到达 |
+
+由此得到两个高频结论：
+
+1. **同一个 Binder 对象的请求是并发执行的**：驱动把请求分给任意一个空闲的 Binder 线程，所以 `onTransact` 里的共享状态必须自己做线程安全——这正是 ContentProvider "不是线程安全"的根源；
+2. **`Binder.getCallingUid()/getCallingPid()` 只在 Binder 线程中有意义**：它们读的是"当前线程正在处理的那次事务"的调用方身份。如果在主线程或普通子线程里调用，拿到的是**自己进程**的 uid/pid。所以权限校验要么留在 Binder 线程里做，要么先把 uid 取出来再切线程。
+
+### 5. 为什么 oneway 是串行的
+
+- **同步（twoway）调用**：客户端阻塞等回复，服务端谁空闲谁处理，同一对象的并发请求会**并行**在不同 Binder 线程上；
+- **oneway 调用**：客户端不等回复，驱动把它放进目标进程的异步 `todo` 队列，并保证**同一个 Binder 对象上的异步事务串行执行**——所以 oneway 的处理函数不用自己加锁，但代价是吞吐受限于单线程：一个耗时操作会拖住该对象后面所有的异步请求（见第七节 OneWay）。
+
+### 6. 线程池耗尽：最隐蔽的 ANR 来源
+
+- 一个进程的 Binder 线程最多 15 个，如果这些线程**全部**卡在"等待其他进程回复"上，新请求就没人处理，整个进程表现为"假死"；
+- 典型链路：A 的多个 Binder 线程同步调用 B，而 B 的 Binder 线程又在同步调用 A（或 B 的所有线程都在等同一把锁）→ 两边互相等待，**Binder 死锁 / 线程池耗尽**；
+- 更常见的形态：**主线程去做同步 Binder 调用**（如主线程直接调耗时的 AIDL 接口），而服务端又需要主线程做别的事才能返回 → ANR；
+- 防御手段：不在 Binder 线程里做递归的同步跨进程调用、耗时接口改 oneway + 回调、给同步调用加超时、用 `linkToDeath` 处理对端死亡，把重活从 Binder 线程挪到独立线程。
+
+---
+
+## 五、Binder 对象跨进程传递的原理
 
 - 在 Binder 驱动中，并不是真的将对象在进程间来回序列化，而是通过**特定的标识**来进行对象的传递。Binder 驱动中，通过 `flat_binder_object` 来描述需要跨越进程传递的对象。
 - 例如当 Server 把 Binder 实体传递给 Client 时，在发送数据流中，`flat_binder_object` 中的 type 是 **BINDER_TYPE_BINDER**，同时 binder 字段指向 Server 进程用户空间地址。但这个地址对于 Client 进程是没有意义的（Linux 中，每个进程的地址空间是互相隔离的），驱动必须对数据流中的 `flat_binder_object` 做相应的翻译：
@@ -195,7 +269,7 @@ Client 端表示应用程序进程，Service 端表示系统服务——它可�
 
 ---
 
-## 五、Binder 对象引用计数与生命周期
+## 六、Binder 对象引用计数与生命周期
 
 在 Client 进程和 Server 进程的一次通信过程中，涉及了四种类型的对象：位于 Binder 驱动程序中的 **Binder 实体对象（binder_node）** 和 **Binder 引用对象（binder_ref）**，以及位于 Binder 库中的 **Binder 本地对象（BBinder）** 和 **Binder 代理对象（BpBinder）**，它们的交互过程如下图所示：
 
@@ -243,7 +317,7 @@ Binder 代理对象是一个类型为 `BpBinder` 的对象，它是在用户空�
 
 ---
 
-## 六、死亡通知与 OneWay 机制
+## 七、死亡通知与 OneWay 机制
 
 ### 1. 死亡通知
 
@@ -260,17 +334,17 @@ Binder 代理对象是一个类型为 `BpBinder` 的对象，它是在用户空�
 
 ---
 
-## 七、Binder 数据限制
+## 八、Binder 数据限制
 
 ```c
 #define BINDER_VM_SIZE ((1*1024*1024) - (4096 *2)) // 1M - 8k
 ```
 
-Binder 事务缓冲区大小约为 **1M - 8k**，超出限制的大数据传输会失败（这也是 Intent 不能传递大数据的原因，见第十节）。
+Binder 事务缓冲区大小约为 **1M - 8k**，超出限制的大数据传输会失败（这也是 Intent 不能传递大数据的原因，见第十一节）。
 
 ---
 
-## 八、AIDL
+## 九、AIDL
 
 ### 1. AIDL 与定向 tag
 
@@ -315,11 +389,11 @@ AIDL 全称是 Android Interface Definition Language，它是 Android SDK 提供
 
 - **同步阻塞**：客户端的 transact 会一直阻塞等待 `_reply` 返回（除非接口声明为 oneway，才走 FLAG_ONEWAY 异步通道），所以不要在主线程调用耗时的 AIDL 接口，否则会 ANR；
 - **方法编号要严格对齐**：两端靠方法编号分发，而不是靠方法名。方法编号由声明顺序决定，所以 AIDL 新增方法只能加在接口**末尾**，且客户端与服务端必须使用同一份 AIDL 声明（包名、方法顺序一致），否则编号错位，会出现调 A 方法却执行 B 方法的诡异问题；
-- **Parcel 序列化受 1M 限制**：参数和返回值都要经过 Parcel 序列化，受 Binder 事务大小限制（约 1M），大对象传输会失败，这也是"为什么 Intent 不能传递大数据"的根本原因（见第七节数据限制）。
+- **Parcel 序列化受 1M 限制**：参数和返回值都要经过 Parcel 序列化，受 Binder 事务大小限制（约 1M），大对象传输会失败，这也是"为什么 Intent 不能传递大数据"的根本原因（见第八节数据限制）。
 
 ---
 
-## 九、多进程通信稳定性问题及解决方案
+## 十、多进程通信稳定性问题及解决方案
 
 ### 1. 常见稳定性问题
 
@@ -341,20 +415,26 @@ AIDL 全称是 Android Interface Definition Language，它是 Android SDK 提供
 
 ---
 
-## 十、面试自测
+## 十一、面试自测
 
 1. **Binder 是什么？有什么优势？是如何跨进程的？**
-   - Binder 是基于 Linux 内核的 IPC 专属驱动，C/S 架构；优势是一次拷贝（性能）、UID/GID 自动传递（安全）、内存开销小；跨进程靠 Binder 驱动做对象翻译（flat_binder_object）与数据转发（见第一、二、三、四节）。
+   - Binder 是基于 Linux 内核的 IPC 专属驱动，C/S 架构；优势是一次拷贝（性能）、UID/GID 自动传递（安全）、内存开销小；跨进程靠 Binder 驱动做对象翻译（flat_binder_object）与数据转发（见第一、二、三、五节）。
 2. **Binder 是如何做到一次拷贝的？**
    - 通过 mmap 把一块物理内存同时映射到内核空间和接收进程的用户空间，发送方数据只拷贝一次到内核映射缓冲区，接收方直接从共享映射区读取（见第二节）。
 3. **四大组件底层的通信机制？**
    - 四大组件的管理与启动都依赖系统服务（AMS、PMS、WMS 等），这些系统服务作为 Binder 的 Server 端，与 App 进程（Client 端）之间全部通过 Binder 通信；例如启动 Activity，就是 App 进程通过 Binder 调用 AMS，AMS 再通过 Binder 回调应用进程。
 4. **为什么 Intent 不能传递大数据？**
-   - Intent 的数据放在 Bundle 中，最终经 Parcel 序列化走 Binder 事务，而事务缓冲区限制为 1M - 8k，超出会抛 TransactionTooLargeException（见第七节）。
+   - Intent 的数据放在 Bundle 中，最终经 Parcel 序列化走 Binder 事务，而事务缓冲区限制为 1M - 8k，超出会抛 TransactionTooLargeException（见第八节）。
+5. **Binder 线程池是什么？什么时候启动？有几个线程？**
+   - 每个进程在 `AppRuntime::onZygoteInit` 里调用 `ProcessState::startThreadPool()`（**早于 `ActivityThread.main`**），由 `spawnPooledThread` 创建第一个 Binder 线程并 `joinThreadPool` 注册进驱动；之后请求变多时驱动发 `BR_SPAWN_LOOPER` 触发扩容，默认上限 `DEFAULT_MAX_BINDER_THREADS = 15`（见第四节）。
+6. **什么样的代码会跑在 Binder 线程上？**
+   - AIDL 的 `Stub.onTransact`、跨进程调用的 ContentProvider CRUD 都在服务端的 Binder 线程；系统回调（`scheduleLaunchActivity`、`handleReceiver`）先到 App 进程的 Binder 线程，再经 `ActivityThread.H` 切到主线程。所以 `Binder.getCallingUid()` 必须在 Binder 线程里取，否则拿到的是自己进程的 uid。
+7. **Binder 线程池耗尽会怎样？怎么避免？**
+   - 15 个线程全部卡在"等别人回复"上时，新请求无人处理，进程假死、进而 ANR。避免方式：不在 Binder 线程里做递归同步跨进程调用、耗时接口改 oneway + 回调、加超时、把重活挪出 Binder 线程（见第四节第 6 小节）。
 
 ---
 
-## 十一、扩展：Messenger 与 ContentProvider
+## 十二、扩展：Messenger 与 ContentProvider
 
 > 这两节原文为空标题，先补一句定位，后续可继续展开。
 
